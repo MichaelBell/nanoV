@@ -1,0 +1,1 @@
+ctx.addClock("clk12MHz", 12)
