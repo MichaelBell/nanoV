@@ -53,10 +53,16 @@ async def test_slt(alu):
     assert alu.d.value == 0  # 1 !< 1
     await ClockCycles(alu.clk, 31)
 
+    alu.a.value = 1
+    alu.b.value = 0
+    await ClockCycles(alu.clk, 1)
+    assert alu.d.value == 1  # 0 < 1
+    await ClockCycles(alu.clk, 31)
+
     alu.a.value = -1
     alu.b.value = -1
     await ClockCycles(alu.clk, 1)
-    assert alu.d.value == 1  # 0 < 1
+    assert alu.d.value == 0  # 1 !< 0
     await ClockCycles(alu.clk, 31)
 
     alu.a.value = -2

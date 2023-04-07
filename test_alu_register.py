@@ -14,8 +14,10 @@ async def test_add(nv):
     nv.rstn.value = 0
     await ClockCycles(nv.clk, 2)
     nv.rstn.value = 1
+    nv.instr.value = InstructionNOP().encode()
+    await ClockCycles(nv.clk, 32)
 
-    nv.instr.value = InstructionADDI(x1, x0, 278).encode()
+    nv.instr.value = InstructionADDI(x1, x0, 279).encode()
     await ClockCycles(nv.clk, 32)
     nv.instr.value = InstructionADDI(x2, x1, 3).encode()
     await ClockCycles(nv.clk, 32)
@@ -23,11 +25,11 @@ async def test_add(nv):
     await ClockCycles(nv.clk, 32)
     nv.instr.value = InstructionSW(x0, x2, 0).encode()
     await ClockCycles(nv.clk, 2)
-    assert nv.data_out.value == 278
+    assert nv.data_out.value == 279
     await ClockCycles(nv.clk, 30)
     nv.instr.value = InstructionADDI(x1, x0, 2).encode()
     await ClockCycles(nv.clk, 2)
-    assert nv.data_out.value == 281
+    assert nv.data_out.value == 282
     await ClockCycles(nv.clk, 30)
 
     nv.instr.value = InstructionSW(x0, x1, 0).encode()
@@ -53,6 +55,32 @@ async def test_add(nv):
     nv.instr.value = InstructionADDI(x1, x2, 1).encode()
     await ClockCycles(nv.clk, 2)
     assert nv.data_out.value == 7
+
+@cocotb.test()
+async def test_slt(nv):
+    clock = Clock(nv.clk, 4, units="ns")
+    cocotb.start_soon(clock.start())
+    nv.rstn.value = 0
+    await ClockCycles(nv.clk, 2)
+    nv.rstn.value = 1
+    nv.instr.value = InstructionNOP().encode()
+    await ClockCycles(nv.clk, 32)
+
+    nv.instr.value = InstructionADDI(x1, x0, 1).encode()
+    await ClockCycles(nv.clk, 32)
+    nv.instr.value = InstructionSLTI(x2, x1, 0).encode()
+    await ClockCycles(nv.clk, 33)
+    nv.instr.value = InstructionSW(x0, x2, 0).encode()
+    await ClockCycles(nv.clk, 34)
+    assert nv.data_out.value == 0
+    await ClockCycles(nv.clk, 30)
+    nv.instr.value = InstructionSLTI(x2, x1, 2).encode()
+    await ClockCycles(nv.clk, 33)
+    nv.instr.value = InstructionSW(x0, x2, 0).encode()
+    await ClockCycles(nv.clk, 34)
+    assert nv.data_out.value == 1
+    await ClockCycles(nv.clk, 30)
+
 
 reg = [0] * 16
 
@@ -90,15 +118,17 @@ async def test_random(nv):
     clock = Clock(nv.clk, 4, units="ns")
     cocotb.start_soon(clock.start())
     nv.rstn.value = 0
+    nv.instr.value = InstructionNOP().encode()
     await ClockCycles(nv.clk, 2)
     nv.rstn.value = 1
+    await ClockCycles(nv.clk, 32)
 
     seed = random.randint(0, 0xFFFFFFFF)
     for test in range(100):
         random.seed(seed + test)
         nv._log.info("Running test with seed {}".format(seed + test))
         for i in range(1, 16):
-            reg[i] = random.randint(-500, 2047)
+            reg[i] = random.randint(-2048, 2047)
             #print("Set reg {} to {}".format(i, reg[i]))
             nv.instr.value = InstructionADDI(i, x0, reg[i]).encode()
             await ClockCycles(nv.clk, 32)

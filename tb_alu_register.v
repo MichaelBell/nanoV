@@ -29,7 +29,7 @@ end
             write_pause <= 1;
         end else begin
             last_counter <= counter;
-            write_pause <= 0;
+            write_pause <= slt_pause[2];
         end
 
     wire [31:0] i_imm = {{20{instr[31]}}, instr[31:20]};
@@ -39,10 +39,11 @@ end
     reg [3:0] rd;
     wire data_rs1, data_rs2, data_rd;
     wire wr_en = alu_write;
-    wire pause = 1'b0;
-    nanoV_registers registers(clk, rstn, pause, wr_en, rs1, rs2, rd, data_rs1, data_rs2, data_rd);
+    //wire pause = 1'b0;
+    nanoV_registers registers(clk, rstn, write_pause, wr_en, rs1, rs2, rd, data_rs1, data_rs2, data_rd);
     always @(posedge clk) begin
-        rd <= instr[10:7];
+        if (!write_pause)
+            rd <= instr[10:7];
     end
 
     reg cy;
@@ -53,23 +54,31 @@ end
     reg alu_imm;
     wire alu_b_in = alu_select_rs2 ? data_rs2 : alu_imm;
     wire cy_in = (last_counter == 0) ? (alu_op[1] || alu_op[3]) : cy;
-    wire cy_out, lts;
-    nanoV_alu alu(alu_op, data_rs1, alu_b_in, cy_in, data_rd, cy_out, lts);
+    wire alu_out, cy_out, lts;
+    reg [2:0] slt_pause;
+    reg [1:0] slt;
+    wire slt_pause_req = (counter == 5'b11111) && (alu_op[2:1] == 2'b01) && instr[4] && !slt_pause[1];
+    assign data_rd = slt_pause[0] ? slt[0] : alu_out;
+    nanoV_alu alu(alu_op, data_rs1, alu_b_in, cy_in, alu_out, cy_out, lts);
 
     always @(posedge clk) begin
+        if (!rstn) begin
+            slt_pause <= 3'b001;  // Must set slt_pause[0] to 1 to avoid possible loop assigning data_rd.
+            alu_op <= 0;
+        end else begin
+            slt_pause <= {slt_pause_req, slt_pause[2:1]};
+            alu_op <= next_alu_op;
+        end
+
         cy <= cy_out;
 
-        alu_op <= next_alu_op;
         alu_select_rs2 <= instr[5];
-        alu_write <= (instr[4:0] == 5'b10011);
+        if (!write_pause)
+            alu_write <= (instr[4:0] == 5'b10011);
         alu_imm <= i_imm[counter];
 
-        // TODO: SLT support using pause
-        /*if (counter == 5'b11111)
-            if (op[2:0] == 3'b011)
-                d[0] <= ~cy_out;
-            else if (op[2:0] == 3'b010)
-                d[0] <= lts; */
+        slt[1] <= alu_op[0] == 1 ? ~cy_out : lts;
+        slt[0] <= slt[1];
     end
 
     // Basic support for Store

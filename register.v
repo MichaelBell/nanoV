@@ -44,6 +44,9 @@ module nanoV_registers (
         end
     end
 
+    wire read_through_rs1 = write_pause && (rs1 == rd);
+    wire read_through_rs2 = write_pause && (rs2 == rd);
+
 `ifdef ICE40
     wire [15:0] reg_read_data;
     SB_RAM40_4K registers (
@@ -71,8 +74,8 @@ module nanoV_registers (
         last_rs2 <= rs2;
     end
 
-    assign data_rs1 = reg_read_data[last_rs1];
-    assign data_rs2 = reg_read_data[last_rs2];
+    assign data_rs1 = read_through_rs1 ? data_rd : reg_read_data[last_rs1];
+    assign data_rs2 = read_through_rs2 ? data_rd : reg_read_data[last_rs2];
 
 `else
     reg [15:1] registers [0:31];  // Each entry is the bit value for each register at a particular index.
@@ -86,8 +89,8 @@ module nanoV_registers (
         read_data_rs2 <= (rs2 == 0) ? 1'b0 : registers[read_addr][rs2];
     end
 
-    assign data_rs1 = read_data_rs1;
-    assign data_rs2 = read_data_rs2;
+    assign data_rs1 = read_through_rs1 ? data_rd : read_data_rs1;
+    assign data_rs2 = read_through_rs1 ? data_rd : read_data_rs2;
 `endif
 
 endmodule
