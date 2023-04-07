@@ -5,11 +5,11 @@
 SIM ?= icarus
 TOPLEVEL_LANG ?= verilog
 
-VERILOG_SOURCES += $(PWD)/alu.v
+VERILOG_SOURCES += $(PWD)/alu.v $(PWD)/tb_alu.v
 COMPILE_ARGS    += -DSIM
 
 # TOPLEVEL is the name of the toplevel module in your Verilog or VHDL file
-TOPLEVEL = nanoV_alu
+TOPLEVEL = tb_alu
 
 # MODULE is the basename of the Python test file
 MODULE = test_alu
