@@ -20,6 +20,37 @@ async def test_add(alu):
 async def test_slt(alu):
     alu.op.value = 0b010
 
+    alu.a.value = 1
+    alu.b.value = 1
+    await Timer(1)
+    assert alu.d.value == 0
+
+    alu.a.value = 0
+    await Timer(1)
+    assert alu.d.value == 1
+
+    alu.a.value = -1
+    alu.b.value = -1
+    await Timer(1)
+    assert alu.d.value == 0
+
+    alu.a.value = -2
+    await Timer(1)
+    assert alu.d.value == 1
+
+    alu.a.value = 0
+    await Timer(1)
+    assert alu.d.value == 0
+
+    alu.a.value = 0
+    alu.b.value = 0
+    await Timer(1)
+    assert alu.d.value == 0
+
+    alu.a.value = -1
+    await Timer(1)
+    assert alu.d.value == 1
+
     for i in range(100):
         a = random.randint(-0x80000000, 0x7FFFFFFF)
         b = random.randint(-0x80000000, 0x7FFFFFFF)
@@ -32,6 +63,41 @@ async def test_slt(alu):
 @cocotb.test()
 async def test_sltu(alu):
     alu.op.value = 0b011
+
+    alu.a.value = 1
+    alu.b.value = 1
+    await Timer(1)
+    assert alu.d.value == 0
+
+    alu.a.value = 0
+    await Timer(1)
+    assert alu.d.value == 1
+
+    alu.a.value = -1
+    alu.b.value = -1
+    await Timer(1)
+    assert alu.d.value == 0
+
+    alu.a.value = -2
+    await Timer(1)
+    assert alu.d.value == 1
+
+    alu.a.value = 0
+    await Timer(1)
+    assert alu.d.value == 1
+
+    alu.a.value = 0
+    alu.b.value = 0
+    await Timer(1)
+    assert alu.d.value == 0
+
+    alu.a.value = -1
+    await Timer(1)
+    assert alu.d.value == 0
+
+    alu.a.value = 1
+    await Timer(1)
+    assert alu.d.value == 0
 
     for i in range(100):
         a = random.randint(0, 0xFFFFFFFF)
