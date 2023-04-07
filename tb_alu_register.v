@@ -3,7 +3,7 @@
    Aim is to support RV32E 
  */
 
-module nanoV (
+module tb_alu_register (
     input clk,
     input rstn,
 
@@ -11,6 +11,14 @@ module nanoV (
 
     output reg [31:0] data_out
 );
+
+`ifdef COCOTB_SIM
+initial begin
+  $dumpfile ("nanoV.vcd");
+  $dumpvars (0, tb_alu_register);
+  #1;
+end
+`endif
 
     reg [4:0] last_counter;
     wire [4:0] counter = last_counter + (write_pause ? 0 : 1);

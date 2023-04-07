@@ -2,13 +2,13 @@
 PROJ      = nanoV
 
 # Files
-FILES = ledscan.v big_7seg.v top.v nanoV.v alu.v
+FILES = ledscan.v big_7seg.v top.v nanoV.v alu.v register.v
 
 .PHONY: iceFUN clean burn
 
 iceFUN:
 	# Synthesize using Yosys
-	yosys -p "synth_ice40 -top nanoV_top -json $(PROJ).json" -DSIM $(FILES) > yosys.log
+	yosys -p "synth_ice40 -top nanoV_top -json $(PROJ).json" -DICE40 $(FILES) > yosys.log
 	@grep Warn yosys.log || true
 	@grep Error yosys.log || true
 	@echo

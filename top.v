@@ -6,20 +6,16 @@ module nanoV_top (
     output o0
 );
 
-    reg [3:0] op;
-    reg [31:0] a;
-    reg [31:0] b;
-    wire [31:0] d;
+    reg [31:0] instr;
+    wire [31:0] data;
 
-    nanoV nano(clk12MHz, rstn, op, a, b, d);
+    nanoV nano(clk12MHz, rstn, instr, data);
 
     always @(posedge clk12MHz) begin
-        op <= {op[2:0],i};
-        a <= {a[30:0],op[3]};
-        b <= {b[30:0],a[31]};
+        instr <= {instr[30:0],i};
     end
 
-    assign o31 = d[31];
-    assign o0 = d[0];
+    assign o31 = data[31];
+    assign o0 = data[0];
 
 endmodule
