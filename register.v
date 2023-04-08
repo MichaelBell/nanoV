@@ -40,49 +40,61 @@ module nanoV_registers (
     wire read_through_rs1 = last_read_through && (rs1 == last_rd);
     wire read_through_rs2 = last_read_through && (rs2 == last_rd);
 
-/*
+`ifdef ICE40
     reg [4:0] read_addr;
     reg [4:0] write_addr;
 
     always @(posedge clk) begin
         if (!rstn) begin
-            read_addr <= 0;
-            write_addr <= 5'b11111;
+            read_addr <= 1;
+            write_addr <= 0;
         end else begin
-            read_addr <= read_addr + 1;
-            write_addr <= write_addr + 1;
+            read_addr <= (read_addr == 5'b11110) ? 0 : read_addr + 1;
+            write_addr <= (write_addr == 5'b11110) ? 0 : write_addr + 1;
         end
     end
 
-    wire [15:0] reg_read_data;
+    wire [15:0] read_data;
+    reg [15:1] reg_write_data;
+    wire [15:0] reg_read_data = {reg_write_data, 1'b0};
+    wire [15:0] write_data;
     SB_RAM40_4K registers (
-        .RDATA(reg_read_data),
+        .RDATA(read_data),
         .RADDR({6'b0,read_addr}),
         .WADDR({6'b0,write_addr}),
-        .MASK(~(16'b1 << rd)),
-        .WDATA({15'b0,data_rd} << rd),
+        .MASK(16'h0001),
+        .WDATA(write_data),
         .RCLKE(1'b1),
         .RCLK(clk),
         .RE(1'b1),
         .WCLKE(1'b1),
         .WCLK(clk),
-        .WE(wr_en && rd != 0)
+        .WE(1'b1)
     );
 
     defparam registers.READ_MODE=0;
     defparam registers.WRITE_MODE=0;
     defparam registers.INIT_0=256'b0;
 
-    reg [3:0] last_rs1;
-    reg [3:0] last_rs2;
-    always @(posedge clk) begin
-        last_rs1 <= rs1;
-        last_rs2 <= rs2;
-    end
+    assign data_rs1 = read_through_rs1 ? last_data_rd_next : reg_read_data[rs1];
+    assign data_rs2 = read_through_rs2 ? last_data_rd_next : reg_read_data[rs2];
 
-    assign data_rs1 = read_through_rs1 ? data_rd : reg_read_data[last_rs1];
-    assign data_rs2 = read_through_rs2 ? data_rd : reg_read_data[last_rs2];
-*/
+    genvar i;
+    generate
+        for (i = 1; i < 16; i = i + 1) begin
+            always @(posedge clk) begin
+                if (wr_next_en && rd == i)
+                    reg_write_data[i] <= data_rd_next;
+                else
+                    reg_write_data[i] <= read_data[i];
+            end
+
+            assign write_data[i] = (wr_en && rd == i) ? data_rd : reg_write_data[i];
+        end
+    endgenerate
+
+    assign write_data[0] = 1'b0;
+`else
 
     reg [31:0] registers [1:15];
 
@@ -110,5 +122,6 @@ module nanoV_registers (
 
     assign data_rs1 = read_through_rs1 ? last_data_rd_next : read_data_rs1;
     assign data_rs2 = read_through_rs2 ? last_data_rd_next : read_data_rs2;
+`endif
 
 endmodule

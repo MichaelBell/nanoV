@@ -12,9 +12,9 @@ async def test_registers(reg):
     await ClockCycles(reg.clk, 2)
     reg.rstn.value = 1
     reg.wr_en.value = 1
-    reg.wr_en_next.value = 0
+    reg.wr_next_en.value = 0
     reg.read_through.value = 0
-    await ClockCycles(reg.clk, 1)
+    #await ClockCycles(reg.clk, 1)
 
     reg.rs1.value = 1
     reg.rs2.value = 2
@@ -32,14 +32,29 @@ async def test_registers(reg):
     assert reg.rs1_out.value == 0x12345679
     await ClockCycles(reg.clk, 31)
 
-    reg.wr_en.value = 0
-    await ClockCycles(reg.clk, 32)
-    reg.rs1.value = 0
+    reg.wr_en.value = 1
+    reg.rd.value = 3
+    reg.rd_in.value = 0
+    await ClockCycles(reg.clk, 31)
+    reg.wr_next_en.value = 1
+    reg.read_through.value = 1
+    reg.rd_in.value = 1
+    await ClockCycles(reg.clk, 1)
+    reg.wr_next_en.value = 0
+    reg.read_through.value = 0
+    reg.rd.value = 0
+    reg.rs1.value = 3
     await ClockCycles(reg.clk, 1)
     assert reg.rs1_out.value == 0xA5948372
 
     await ClockCycles(reg.clk, 32)
-    assert reg.rs1_out.value == 0
+    assert reg.rs1_out.value == 1
+    await ClockCycles(reg.clk, 31)
+    reg.rs1.value = 0
+    await ClockCycles(reg.clk, 1)
+    assert reg.rs1_out.value == 1
+
+    await ClockCycles(reg.clk, 32)
 
     j = 0
     val = 0

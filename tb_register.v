@@ -8,7 +8,7 @@ module tb_register (
     input rstn,
 
     input wr_en,
-    input wr_en_next,
+    input wr_next_en,
     input read_through,
 
     input [3:0] rs1,
@@ -38,7 +38,7 @@ end
         end
 
     wire data_rs1, data_rs2;
-    nanoV_registers registers(clk, rstn, wr_en, wr_en_next, read_through, rs1, rs2, rd, data_rs1, data_rs2, rd_in[last_counter], rd_in[counter]);
+    nanoV_registers registers(clk, rstn, wr_en, wr_next_en, read_through, rs1, rs2, rd, data_rs1, data_rs2, rd_in[last_counter], rd_in[counter]);
 
     always @(posedge clk) begin
         rs1_out[last_counter] <= data_rs1;
