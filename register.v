@@ -33,7 +33,7 @@ module nanoV_registers (
     reg [3:0] last_rd;
     always @(posedge clk) begin
         last_data_rd_next <= data_rd_next;
-        last_read_through <= read_through;
+        last_read_through <= read_through && rd != 0;
         last_rd <= rd;
     end
 

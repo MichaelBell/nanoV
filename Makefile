@@ -17,6 +17,7 @@ iceFUN:
 	nextpnr-ice40 -r --hx8k --json $(PROJ).json --package cb132 --pre-pack timing.py --asc $(PROJ).asc --opt-timing --pcf iceFUN.pcf > nextpnr.log 2>& 1
 	@grep Warn nextpnr.log || true
 	@grep Error nextpnr.log || true
+	@grep "Max frequency.*cpu_clk" nextpnr.log | tail -1
 	@echo
 
 	# Convert to bitstream using IcePack

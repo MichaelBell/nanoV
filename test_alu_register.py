@@ -111,6 +111,10 @@ ops = [
     Op(InstructionOR, lambda rs1, rs2: reg[rs1] | reg[rs2], "|"),
     Op(InstructionXORI, lambda rs1, imm: reg[rs1] ^ imm, "^i"),
     Op(InstructionXOR, lambda rs1, rs2: reg[rs1] ^ reg[rs2], "^"),
+    Op(InstructionSLTI, lambda rs1, imm: 1 if reg[rs1] < imm else 0, "<i"),
+    Op(InstructionSLT, lambda rs1, rs2: 1 if reg[rs1] < reg[rs2] else 0, "<"),
+    Op(InstructionSLTIU, lambda rs1, imm: 1 if (reg[rs1] & 0xFFFFFFFF) < (imm & 0xFFFFFFFF) else 0, "<iu"),
+    Op(InstructionSLTU, lambda rs1, rs2: 1 if (reg[rs1] & 0xFFFFFFFF) < (reg[rs2] & 0xFFFFFFFF) else 0, "<u"),
 ]
 
 @cocotb.test()
@@ -124,6 +128,7 @@ async def test_random(nv):
     await ClockCycles(nv.clk, 32)
 
     seed = random.randint(0, 0xFFFFFFFF)
+    #seed = 2727386296
     for test in range(100):
         random.seed(seed + test)
         nv._log.info("Running test with seed {}".format(seed + test))
