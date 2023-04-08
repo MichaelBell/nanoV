@@ -11,8 +11,9 @@ async def test_registers(reg):
     reg.rstn.value = 0
     await ClockCycles(reg.clk, 2)
     reg.rstn.value = 1
-    reg.pause.value = 0
     reg.wr_en.value = 1
+    reg.wr_en_next.value = 0
+    reg.read_through.value = 0
     await ClockCycles(reg.clk, 1)
 
     reg.rs1.value = 1

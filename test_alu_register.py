@@ -24,36 +24,36 @@ async def test_add(nv):
     nv.instr.value = InstructionSW(x0, x1, 0).encode()
     await ClockCycles(nv.clk, 32)
     nv.instr.value = InstructionSW(x0, x2, 0).encode()
-    await ClockCycles(nv.clk, 2)
+    await ClockCycles(nv.clk, 1)
     assert nv.data_out.value == 279
-    await ClockCycles(nv.clk, 30)
+    await ClockCycles(nv.clk, 31)
     nv.instr.value = InstructionADDI(x1, x0, 2).encode()
-    await ClockCycles(nv.clk, 2)
+    await ClockCycles(nv.clk, 1)
     assert nv.data_out.value == 282
-    await ClockCycles(nv.clk, 30)
+    await ClockCycles(nv.clk, 31)
 
     nv.instr.value = InstructionSW(x0, x1, 0).encode()
     await ClockCycles(nv.clk, 32)
     nv.instr.value = InstructionADD(x2, x1, x1).encode()
-    await ClockCycles(nv.clk, 2)
+    await ClockCycles(nv.clk, 1)
     assert nv.data_out.value == 2
-    await ClockCycles(nv.clk, 30)
+    await ClockCycles(nv.clk, 31)
     nv.instr.value = InstructionSW(x0, x2, 0).encode()
     await ClockCycles(nv.clk, 32)
     nv.instr.value = InstructionADD(x2, x2, x1).encode()
-    await ClockCycles(nv.clk, 2)
+    await ClockCycles(nv.clk, 1)
     assert nv.data_out.value == 4
-    await ClockCycles(nv.clk, 30)
+    await ClockCycles(nv.clk, 31)
     nv.instr.value = InstructionSW(x0, x2, 0).encode()
     await ClockCycles(nv.clk, 32)
     nv.instr.value = InstructionADDI(x1, x2, 1).encode()
-    await ClockCycles(nv.clk, 2)
+    await ClockCycles(nv.clk, 1)
     assert nv.data_out.value == 6
-    await ClockCycles(nv.clk, 30)
+    await ClockCycles(nv.clk, 31)
     nv.instr.value = InstructionSW(x0, x1, 0).encode()
     await ClockCycles(nv.clk, 32)
     nv.instr.value = InstructionADDI(x1, x2, 1).encode()
-    await ClockCycles(nv.clk, 2)
+    await ClockCycles(nv.clk, 1)
     assert nv.data_out.value == 7
 
 @cocotb.test()
@@ -69,17 +69,17 @@ async def test_slt(nv):
     nv.instr.value = InstructionADDI(x1, x0, 1).encode()
     await ClockCycles(nv.clk, 32)
     nv.instr.value = InstructionSLTI(x2, x1, 0).encode()
-    await ClockCycles(nv.clk, 33)
+    await ClockCycles(nv.clk, 32)
     nv.instr.value = InstructionSW(x0, x2, 0).encode()
-    await ClockCycles(nv.clk, 34)
+    await ClockCycles(nv.clk, 33)
     assert nv.data_out.value == 0
-    await ClockCycles(nv.clk, 30)
+    await ClockCycles(nv.clk, 31)
     nv.instr.value = InstructionSLTI(x2, x1, 2).encode()
-    await ClockCycles(nv.clk, 33)
+    await ClockCycles(nv.clk, 32)
     nv.instr.value = InstructionSW(x0, x2, 0).encode()
-    await ClockCycles(nv.clk, 34)
+    await ClockCycles(nv.clk, 33)
     assert nv.data_out.value == 1
-    await ClockCycles(nv.clk, 30)
+    await ClockCycles(nv.clk, 31)
 
 
 reg = [0] * 16
@@ -135,15 +135,15 @@ async def test_random(nv):
 
         if True:
             nv.instr.value = InstructionSW(x0, 0, 0).encode()
-            await ClockCycles(nv.clk, 2)
+            await ClockCycles(nv.clk, 1)
             for i in range(16):
-                await ClockCycles(nv.clk, 30)
+                await ClockCycles(nv.clk, 31)
 
                 nv.instr.value = InstructionSW(x0, (i+1) & 0xF, 0).encode()
-                await ClockCycles(nv.clk, 2)
+                await ClockCycles(nv.clk, 1)
                 #print("Reg {} is {}".format(i, nv.data_out.value.signed_integer))
                 assert nv.data_out.value.signed_integer == reg[i]
-            await ClockCycles(nv.clk, 30)
+            await ClockCycles(nv.clk, 31)
 
         for i in range(25):
             instr = random.choice(ops)
@@ -157,12 +157,12 @@ async def test_random(nv):
             await ClockCycles(nv.clk, 32)
 
         nv.instr.value = InstructionSW(x0, 0, 0).encode()
-        await ClockCycles(nv.clk, 2)
+        await ClockCycles(nv.clk, 1)
         for i in range(16):
-            await ClockCycles(nv.clk, 30)
+            await ClockCycles(nv.clk, 31)
 
             nv.instr.value = InstructionSW(x0, (i+1) & 0xF, 0).encode()
-            await ClockCycles(nv.clk, 2)
+            await ClockCycles(nv.clk, 1)
             #print("Reg x{} = {} should be {}".format(i, int(nv.data_out.value), reg[i]))
             assert nv.data_out.value == reg[i] & 0xFFFFFFFF
-        await ClockCycles(nv.clk, 30)
+        await ClockCycles(nv.clk, 31)

@@ -7,8 +7,9 @@ module tb_register (
     input clk,
     input rstn,
 
-    input pause,
     input wr_en,
+    input wr_en_next,
+    input read_through,
 
     input [3:0] rs1,
     input [3:0] rs2,
@@ -28,19 +29,16 @@ end
 `endif
 
     reg [4:0] last_counter;
-    wire [4:0] counter = last_counter + (write_pause ? 0 : 1);
-    reg write_pause;
+    wire [4:0] counter = last_counter + 1;
     always @(posedge clk)
         if (!rstn) begin
             last_counter <= 0;
-            write_pause <= 1;
         end else begin
             last_counter <= counter;
-            write_pause <= pause;
         end
 
     wire data_rs1, data_rs2;
-    nanoV_registers registers(clk, rstn, pause, wr_en, rs1, rs2, rd, data_rs1, data_rs2, rd_in[last_counter]);
+    nanoV_registers registers(clk, rstn, wr_en, wr_en_next, read_through, rs1, rs2, rd, data_rs1, data_rs2, rd_in[last_counter], rd_in[counter]);
 
     always @(posedge clk) begin
         rs1_out[last_counter] <= data_rs1;

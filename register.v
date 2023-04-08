@@ -14,8 +14,9 @@ module nanoV_registers (
     input clk,
     input rstn,
 
-    input pause,  // Pause the register cycling.  If wr_en is 
     input wr_en,  // Whether to write to rd.
+    input wr_next_en,
+    input read_through,
 
     input [3:0] rs1,
     input [3:0] rs2,
@@ -23,31 +24,36 @@ module nanoV_registers (
 
     output data_rs1,
     output data_rs2,
-    input data_rd
+    input data_rd,
+    input data_rd_next
 );
 
+    reg last_data_rd_next;
+    reg last_read_through;
+    reg [3:0] last_rd;
+    always @(posedge clk) begin
+        last_data_rd_next <= data_rd_next;
+        last_read_through <= read_through;
+        last_rd <= rd;
+    end
+
+    wire read_through_rs1 = last_read_through && (rs1 == last_rd);
+    wire read_through_rs2 = last_read_through && (rs2 == last_rd);
+
+/*
     reg [4:0] read_addr;
     reg [4:0] write_addr;
-    reg write_pause;
 
     always @(posedge clk) begin
         if (!rstn) begin
             read_addr <= 0;
-            write_addr <= 0;
-            write_pause <= 1;
+            write_addr <= 5'b11111;
         end else begin
-            if (!pause)
-                read_addr <= read_addr + 1;
-            if (!write_pause)
-                write_addr <= write_addr + 1;
-            write_pause <= pause;
+            read_addr <= read_addr + 1;
+            write_addr <= write_addr + 1;
         end
     end
 
-    wire read_through_rs1 = write_pause && (rs1 == rd);
-    wire read_through_rs2 = write_pause && (rs2 == rd);
-
-`ifdef ICE40
     wire [15:0] reg_read_data;
     SB_RAM40_4K registers (
         .RDATA(reg_read_data),
@@ -76,21 +82,33 @@ module nanoV_registers (
 
     assign data_rs1 = read_through_rs1 ? data_rd : reg_read_data[last_rs1];
     assign data_rs2 = read_through_rs2 ? data_rd : reg_read_data[last_rs2];
+*/
 
-`else
-    reg [15:1] registers [0:31];  // Each entry is the bit value for each register at a particular index.
-    reg read_data_rs1, read_data_rs2;
+    reg [31:0] registers [1:15];
 
-    always @(posedge clk) begin
-        if (wr_en && rd != 0)
-            registers[write_addr][rd] <= data_rd;
+    genvar i;
+    generate
+        for (i = 1; i < 16; i = i + 1) begin
+            always @(posedge clk) begin
+                if (wr_en && rd == i)
+                    registers[i][0] <= data_rd;
+                else
+                    registers[i][0] <= registers[i][1];
+                
+                if (wr_next_en && rd == i)
+                    registers[i][1] <= data_rd_next;
+                else
+                    registers[i][1] <= registers[i][2];
+                
+                registers[i][31:2] <= {registers[i][0], registers[i][31:3]};
+            end
+        end
+    endgenerate 
 
-        read_data_rs1 <= (rs1 == 0) ? 1'b0 : registers[read_addr][rs1];
-        read_data_rs2 <= (rs2 == 0) ? 1'b0 : registers[read_addr][rs2];
-    end
+    wire read_data_rs1 = (rs1 == 0) ? 1'b0 : registers[rs1][1];
+    wire read_data_rs2 = (rs2 == 0) ? 1'b0 : registers[rs2][1];
 
-    assign data_rs1 = read_through_rs1 ? data_rd : read_data_rs1;
-    assign data_rs2 = read_through_rs1 ? data_rd : read_data_rs2;
-`endif
+    assign data_rs1 = read_through_rs1 ? last_data_rd_next : read_data_rs1;
+    assign data_rs2 = read_through_rs2 ? last_data_rd_next : read_data_rs2;
 
 endmodule
