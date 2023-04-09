@@ -61,17 +61,18 @@ module nanoV_core (
 
     wire [4:0] shift_amt = alu_select_rs2 ? shift_amt_reg : i_imm[4:0];
     wire shifter_out;
-    nanoV_shift shifter({instr[30],alu_op[2:0]}, counter, stored_data, shift_amt, shifter_out);
+    wire shift_stored;
+    nanoV_shift shifter({instr[30],alu_op[2:0]}, counter, stored_data, shift_amt, shifter_out, shift_stored, shift_in);
 
     assign data_rd = (alu_op[1:0] == 2'b01) ? shifter_out : alu_out;
     assign branch = slt;
 
     // Various instructions require us to buffer a register
     wire store_data_in = (alu_op[1:0] == 2'b01) ? data_rs1 : data_rs2;
-    wire do_store = ((alu_op[1:0] == 2'b01) && cycle == 0) || (instr[6:2] == 5'b01000);
+    wire do_store = ((alu_op[1:0] == 2'b01) && (cycle == 0 || shift_stored)) || (instr[6:2] == 5'b01000);
     always @(posedge clk) begin
         if (do_store) begin
-            stored_data[31] <= store_data_in;
+            stored_data[31] <= ((alu_op[1:0] == 2'b01) && (cycle == 1 && shift_stored)) ? shift_in : store_data_in;
             stored_data[30:0] <= stored_data[31:1];
         end
     end

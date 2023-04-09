@@ -11,16 +11,19 @@ module nanoV_shift (
     input [4:0] counter,
     input [31:0] a,
     input [4:0] b,
-    output d
+    output d,
+    output shift_a,
+    output top_bit
 );
 
-    wire top_bit = op[3] ? a[31] : 1'b0;
+    assign top_bit = op[3] ? a[31] : 1'b0;
 
     wire [5:0] counter_left = {1'b0,counter} - {1'b0,b};
-    wire a_left = counter_left[5] ? 1'b0 : a[counter_left[4:0]];
+    wire a_left = counter_left[5] ? 1'b0 : a[0];
     wire [5:0] counter_right = {1'b0,counter} + {1'b0,b};
-    wire a_right = counter_right[5] ? top_bit : a[counter_right[4:0]];
+    wire a_right = counter_right[5] ? top_bit : a[b];
 
     assign d = op[2] ? a_right : a_left;
+    assign shift_a = op[2] ? (counter_right[5] == 0) : (counter_left[5] == 0);
 
 endmodule
