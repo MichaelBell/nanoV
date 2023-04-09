@@ -178,34 +178,41 @@ reg = [0] * 16
 # Each Op does reg[d] = fn(a, b)
 # fn will access reg global array
 class Op:
-    def __init__(self, rvm_insn, fn, name):
+    def __init__(self, rvm_insn, fn, cycles, name):
         self.rvm_insn = rvm_insn
         self.fn = fn
         self.name = name
+        self.cycles = cycles
     
     def execute_fn(self, rd, rs1, arg2):
         if rd != 0:
             reg[rd] = self.fn(rs1, arg2)
-            if  reg[rd] < -0x80000000: reg[rd] += 0x100000000
-            elif reg[rd] > 0x7FFFFFFF:  reg[rd] -= 0x100000000
+            while reg[rd] < -0x80000000: reg[rd] += 0x100000000
+            while reg[rd] > 0x7FFFFFFF:  reg[rd] -= 0x100000000
 
     def encode(self, rd, rs1, arg2):
         return self.rvm_insn(rd, rs1, arg2).encode()
 
 ops = [
-    Op(InstructionADDI, lambda rs1, imm: reg[rs1] + imm, "+i"),
-    Op(InstructionADD, lambda rs1, rs2: reg[rs1] + reg[rs2], "+"),
-    Op(InstructionSUB, lambda rs1, rs2: reg[rs1] - reg[rs2], "-"),
-    Op(InstructionANDI, lambda rs1, imm: reg[rs1] & imm, "&i"),
-    Op(InstructionAND, lambda rs1, rs2: reg[rs1] & reg[rs2], "&"),
-    Op(InstructionORI, lambda rs1, imm: reg[rs1] | imm, "|i"),
-    Op(InstructionOR, lambda rs1, rs2: reg[rs1] | reg[rs2], "|"),
-    Op(InstructionXORI, lambda rs1, imm: reg[rs1] ^ imm, "^i"),
-    Op(InstructionXOR, lambda rs1, rs2: reg[rs1] ^ reg[rs2], "^"),
-    Op(InstructionSLTI, lambda rs1, imm: 1 if reg[rs1] < imm else 0, "<i"),
-    Op(InstructionSLT, lambda rs1, rs2: 1 if reg[rs1] < reg[rs2] else 0, "<"),
-    Op(InstructionSLTIU, lambda rs1, imm: 1 if (reg[rs1] & 0xFFFFFFFF) < (imm & 0xFFFFFFFF) else 0, "<iu"),
-    Op(InstructionSLTU, lambda rs1, rs2: 1 if (reg[rs1] & 0xFFFFFFFF) < (reg[rs2] & 0xFFFFFFFF) else 0, "<u"),
+    Op(InstructionADDI, lambda rs1, imm: reg[rs1] + imm, 1, "+i"),
+    Op(InstructionADD, lambda rs1, rs2: reg[rs1] + reg[rs2], 1, "+"),
+    Op(InstructionSUB, lambda rs1, rs2: reg[rs1] - reg[rs2], 1, "-"),
+    Op(InstructionANDI, lambda rs1, imm: reg[rs1] & imm, 1, "&i"),
+    Op(InstructionAND, lambda rs1, rs2: reg[rs1] & reg[rs2], 1, "&"),
+    Op(InstructionORI, lambda rs1, imm: reg[rs1] | imm, 1, "|i"),
+    Op(InstructionOR, lambda rs1, rs2: reg[rs1] | reg[rs2], 1, "|"),
+    Op(InstructionXORI, lambda rs1, imm: reg[rs1] ^ imm, 1, "^i"),
+    Op(InstructionXOR, lambda rs1, rs2: reg[rs1] ^ reg[rs2], 1, "^"),
+    Op(InstructionSLTI, lambda rs1, imm: 1 if reg[rs1] < imm else 0, 1, "<i"),
+    Op(InstructionSLT, lambda rs1, rs2: 1 if reg[rs1] < reg[rs2] else 0, 1, "<"),
+    Op(InstructionSLTIU, lambda rs1, imm: 1 if (reg[rs1] & 0xFFFFFFFF) < (imm & 0xFFFFFFFF) else 0, 1, "<iu"),
+    Op(InstructionSLTU, lambda rs1, rs2: 1 if (reg[rs1] & 0xFFFFFFFF) < (reg[rs2] & 0xFFFFFFFF) else 0, 1, "<u"),
+    Op(InstructionSLLI, lambda rs1, imm: reg[rs1] << imm, 2, "<<i"),
+    Op(InstructionSLL, lambda rs1, rs2: reg[rs1] << (reg[rs2] & 0x1F), 2, "<<"),
+    Op(InstructionSRLI, lambda rs1, imm: (reg[rs1] & 0xFFFFFFFF) >> imm, 2, ">>li"),
+    Op(InstructionSRL, lambda rs1, rs2: (reg[rs1] & 0xFFFFFFFF) >> (reg[rs2] & 0x1F), 2, ">>l"),
+    Op(InstructionSRAI, lambda rs1, imm: reg[rs1] >> imm, 2, ">>i"),
+    Op(InstructionSRA, lambda rs1, rs2: reg[rs1] >> (reg[rs2] & 0x1F), 2, ">>"),
 ]
 
 @cocotb.test()
@@ -220,13 +227,14 @@ async def test_random(nv):
     await ClockCycles(nv.clk, 32)
 
     seed = random.randint(0, 0xFFFFFFFF)
-    #seed = 2727386296
+    seed = 892186356
+    debug = False
     for test in range(100):
         random.seed(seed + test)
         nv._log.info("Running test with seed {}".format(seed + test))
         for i in range(1, 16):
             reg[i] = random.randint(-2048, 2047)
-            #print("Set reg {} to {}".format(i, reg[i]))
+            if debug: print("Set reg {} to {}".format(i, reg[i]))
             nv.instr.value = InstructionADDI(i, x0, reg[i]).encode()
             await ClockCycles(nv.clk, 32)
 
@@ -238,20 +246,31 @@ async def test_random(nv):
 
                 nv.instr.value = InstructionSW(x0, (i+1) & 0xF, 0).encode()
                 await ClockCycles(nv.clk, 1)
-                #print("Reg {} is {}".format(i, nv.data_out.value.signed_integer))
+                if debug: print("Reg {} is {}".format(i, nv.data_out.value.signed_integer))
                 assert nv.data_out.value.signed_integer == reg[i]
             await ClockCycles(nv.clk, 31)
 
         for i in range(25):
-            instr = random.choice(ops)
-            rd = random.randint(0, 15)
-            rs1 = random.randint(0, 15)
-            arg2 = random.randint(0, 15)  # TODO
+            while True:
+                try:
+                    instr = random.choice(ops)
+                    rd = random.randint(0, 15)
+                    rs1 = random.randint(0, 15)
+                    arg2 = random.randint(0, 15)  # TODO
+
+                    instr.execute_fn(rd, rs1, arg2)
+                    break
+                except ValueError:
+                    pass
 
             nv.instr.value = instr.encode(rd, rs1, arg2)
-            instr.execute_fn(rd, rs1, arg2)
-            #print("x{} = x{} {} {}, now {}".format(rd, rs1, arg2, instr.name, reg[rd]))
-            await ClockCycles(nv.clk, 32)
+            if debug: print("x{} = x{} {} {}, now {}".format(rd, rs1, arg2, instr.name, reg[rd]))
+            for i in range(instr.cycles):
+                nv.cycle.value = i
+                await ClockCycles(nv.clk, 32)
+            nv.cycle.value = 0
+            if debug:
+                assert await get_reg_value(nv, rd) == reg[rd] & 0xFFFFFFFF
 
         nv.instr.value = InstructionSW(x0, 0, 0).encode()
         await ClockCycles(nv.clk, 1)
@@ -260,6 +279,6 @@ async def test_random(nv):
 
             nv.instr.value = InstructionSW(x0, (i+1) & 0xF, 0).encode()
             await ClockCycles(nv.clk, 1)
-            #print("Reg x{} = {} should be {}".format(i, int(nv.data_out.value), reg[i]))
+            if debug: print("Reg x{} = {} should be {}".format(i, int(nv.data_out.value), reg[i]))
             assert nv.data_out.value == reg[i] & 0xFFFFFFFF
         await ClockCycles(nv.clk, 31)

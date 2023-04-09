@@ -60,8 +60,7 @@ module nanoV_core (
     end
 
     wire [4:0] shift_amt = alu_select_rs2 ? shift_amt_reg : alu_op[2] ? i_imm[4:0] : ~i_imm[4:0];
-    wire shifter_out;
-    wire shift_stored;
+    wire shifter_out, shift_stored, shift_in;
     nanoV_shift shifter({instr[30],alu_op[2:0]}, counter, stored_data, shift_amt, shifter_out, shift_stored, shift_in);
 
     assign data_rd = (alu_op[1:0] == 2'b01) ? shifter_out : alu_out;
