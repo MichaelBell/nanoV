@@ -5,7 +5,7 @@ from cocotb.clock import Clock
 from cocotb.triggers import Timer, ClockCycles
 
 from riscvmodel.insn import *
-from riscvmodel.regnames import x0, x1, x2
+from riscvmodel.regnames import x0, x1, x2, x3
 
 @cocotb.test()
 async def test_add(nv):
@@ -15,6 +15,7 @@ async def test_add(nv):
     await ClockCycles(nv.clk, 2)
     nv.rstn.value = 1
     nv.instr.value = InstructionNOP().encode()
+    nv.cycle.value = 0
     await ClockCycles(nv.clk, 32)
 
     nv.instr.value = InstructionADDI(x1, x0, 279).encode()
@@ -56,6 +57,13 @@ async def test_add(nv):
     await ClockCycles(nv.clk, 1)
     assert nv.data_out.value == 7
 
+async def get_reg_value(nv, reg):
+    nv.instr.value = InstructionSW(x0, reg, 0).encode()
+    await ClockCycles(nv.clk, 33)
+    val = nv.data_out.value
+    await ClockCycles(nv.clk, 31)
+    return val
+
 @cocotb.test()
 async def test_slt(nv):
     clock = Clock(nv.clk, 4, units="ns")
@@ -63,6 +71,7 @@ async def test_slt(nv):
     nv.rstn.value = 0
     await ClockCycles(nv.clk, 2)
     nv.rstn.value = 1
+    nv.cycle.value = 0
     nv.instr.value = InstructionNOP().encode()
     await ClockCycles(nv.clk, 32)
 
@@ -70,16 +79,98 @@ async def test_slt(nv):
     await ClockCycles(nv.clk, 32)
     nv.instr.value = InstructionSLTI(x2, x1, 0).encode()
     await ClockCycles(nv.clk, 32)
-    nv.instr.value = InstructionSW(x0, x2, 0).encode()
-    await ClockCycles(nv.clk, 33)
-    assert nv.data_out.value == 0
-    await ClockCycles(nv.clk, 31)
+    assert await get_reg_value(nv, x2) == 0
+
     nv.instr.value = InstructionSLTI(x2, x1, 2).encode()
     await ClockCycles(nv.clk, 32)
     nv.instr.value = InstructionSW(x0, x2, 0).encode()
-    await ClockCycles(nv.clk, 33)
-    assert nv.data_out.value == 1
-    await ClockCycles(nv.clk, 31)
+    assert await get_reg_value(nv, x2) == 1
+
+async def TwoCycleInstr(nv):
+    nv.cycle.value = 0
+    await ClockCycles(nv.clk, 32)
+    nv.cycle.value = 1
+    await ClockCycles(nv.clk, 32)
+    nv.cycle.value = 0
+
+@cocotb.test()
+async def test_shift(nv):
+    clock = Clock(nv.clk, 4, units="ns")
+    cocotb.start_soon(clock.start())
+    nv.rstn.value = 0
+    await ClockCycles(nv.clk, 2)
+    nv.rstn.value = 1
+    nv.cycle.value = 0
+    nv.instr.value = InstructionNOP().encode()
+    await ClockCycles(nv.clk, 32)
+
+    nv.instr.value = InstructionADDI(x1, x0, 1).encode()
+    await ClockCycles(nv.clk, 32)
+    nv.instr.value = InstructionSLLI(x2, x1, 4).encode()
+    await TwoCycleInstr(nv)
+    assert await get_reg_value(nv, x2) == 16
+    nv.instr.value = InstructionSLLI(x2, x1, 2).encode()
+    await TwoCycleInstr(nv)
+    assert await get_reg_value(nv, x2) == 4
+    nv.instr.value = InstructionSLLI(x2, x1, 0).encode()
+    await TwoCycleInstr(nv)
+    assert await get_reg_value(nv, x2) == 1
+    nv.instr.value = InstructionSLLI(x2, x1, 31).encode()
+    await TwoCycleInstr(nv)
+    assert await get_reg_value(nv, x2) == 0x80000000
+
+    nv.instr.value = InstructionADDI(x3, x0, 1).encode()
+    await ClockCycles(nv.clk, 32)
+    nv.instr.value = InstructionSLL(x2, x1, x3).encode()
+    await TwoCycleInstr(nv)
+    assert await get_reg_value(nv, x2) == 2
+    nv.instr.value = InstructionADDI(x3, x3, 15).encode()
+    await ClockCycles(nv.clk, 32)
+    nv.instr.value = InstructionSLL(x3, x1, x3).encode()
+    await TwoCycleInstr(nv)
+    assert await get_reg_value(nv, x3) == 0x10000
+
+    nv.instr.value = InstructionSRLI(x2, x3, 1).encode()
+    await TwoCycleInstr(nv)
+    assert await get_reg_value(nv, x2) == 0x8000
+    nv.instr.value = InstructionSRLI(x2, x3, 4).encode()
+    await TwoCycleInstr(nv)
+    assert await get_reg_value(nv, x2) == 0x1000
+
+    nv.instr.value = InstructionSRL(x2, x3, x1).encode()
+    await TwoCycleInstr(nv)
+    assert await get_reg_value(nv, x2) == 0x8000
+    nv.instr.value = InstructionADDI(x1, x0, 15).encode()
+    await ClockCycles(nv.clk, 32)
+    nv.instr.value = InstructionSRL(x2, x3, x1).encode()
+    await TwoCycleInstr(nv)
+    assert await get_reg_value(nv, x2) == 2
+    nv.instr.value = InstructionADDI(x1, x0, 17).encode()
+    await ClockCycles(nv.clk, 32)
+    nv.instr.value = InstructionSRL(x2, x3, x1).encode()
+    await TwoCycleInstr(nv)
+    assert await get_reg_value(nv, x2) == 0
+
+    nv.instr.value = InstructionSRAI(x2, x3, 15).encode()
+    await TwoCycleInstr(nv)
+    assert await get_reg_value(nv, x2) == 2
+
+    nv.instr.value = InstructionSLLI(x3, x3, 15).encode()
+    await TwoCycleInstr(nv)
+
+    nv.instr.value = InstructionSRAI(x2, x3, 1).encode()
+    await TwoCycleInstr(nv)
+    assert await get_reg_value(nv, x2) == 0xC0000000
+    nv.instr.value = InstructionADDI(x1, x0, 15).encode()
+    await ClockCycles(nv.clk, 32)
+    nv.instr.value = InstructionSRA(x2, x3, x1).encode()
+    await TwoCycleInstr(nv)
+    assert await get_reg_value(nv, x2) == 0xFFFF0000
+    nv.instr.value = InstructionADDI(x1, x0, 17).encode()
+    await ClockCycles(nv.clk, 32)
+    nv.instr.value = InstructionSRA(x2, x3, x1).encode()
+    await TwoCycleInstr(nv)
+    assert await get_reg_value(nv, x2) == 0xFFFFC000
 
 
 reg = [0] * 16
@@ -122,6 +213,7 @@ async def test_random(nv):
     clock = Clock(nv.clk, 4, units="ns")
     cocotb.start_soon(clock.start())
     nv.rstn.value = 0
+    nv.cycle.value = 0
     nv.instr.value = InstructionNOP().encode()
     await ClockCycles(nv.clk, 2)
     nv.rstn.value = 1

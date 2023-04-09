@@ -20,7 +20,7 @@ module nanoV_top (
     reg [31:0] instr;
     wire [31:0] data;
 
-    nanoV nano(cpu_clk, rstn, instr, data);
+    nanoV_core nano(cpu_clk, rstn, instr, 2'b00, data);
 
     always @(posedge cpu_clk) begin
         instr <= {instr[30:0],i};

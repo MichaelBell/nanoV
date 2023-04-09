@@ -3,13 +3,15 @@
    Aim is to support RV32E 
  */
 
-module nanoV (
+module nanoV_core (
     input clk,
     input rstn,
 
     input [31:0] instr,
+    input [1:0] cycle,
 
-    output reg [31:0] data_out
+    output [31:0] data_out,
+    output branch
 );
 
     reg [4:0] counter;
@@ -21,6 +23,7 @@ module nanoV (
         end
 
     wire [31:0] i_imm = {{20{instr[31]}}, instr[31:20]};
+    reg [31:0] stored_data;
 
     wire [3:0] rs1 = instr[18:15];
     wire [3:0] rs2 = instr[23:20];
@@ -42,16 +45,37 @@ module nanoV (
     wire alu_out, cy_out, lts;
     wire slt = alu_op[0] == 1 ? ~cy_out : lts;
     wire slt_req = (counter == 5'b11111) && (alu_op[2:1] == 2'b01) && instr[4];
-    assign data_rd = alu_out;
     nanoV_alu alu(alu_op, data_rs1, alu_b_in, cy_in, alu_out, cy_out, lts);
 
     always @(posedge clk) begin
         cy <= cy_out;
     end
 
-    // Basic support for Store
-    always @(posedge clk)
-        if (instr[6:0] == 7'b0100011)
-            data_out[counter] <= data_rs2;
+    reg [4:0] shift_amt_reg;
+    always @(posedge clk) begin
+        if (counter < 5 && cycle == 0) begin
+            shift_amt_reg[4] <= data_rs2;
+            shift_amt_reg[3:0] <= shift_amt_reg[4:1];
+        end
+    end
+
+    wire [4:0] shift_amt = alu_select_rs2 ? shift_amt_reg : i_imm[4:0];
+    wire shifter_out;
+    nanoV_shift shifter({instr[30],alu_op[2:0]}, counter, stored_data, shift_amt, shifter_out);
+
+    assign data_rd = (alu_op[1:0] == 2'b01) ? shifter_out : alu_out;
+    assign branch = slt;
+
+    // Various instructions require us to buffer a register
+    wire store_data_in = (alu_op[1:0] == 2'b01) ? data_rs1 : data_rs2;
+    wire do_store = ((alu_op[1:0] == 2'b01) && cycle == 0) || (instr[6:2] == 5'b01000);
+    always @(posedge clk) begin
+        if (do_store) begin
+            stored_data[31] <= store_data_in;
+            stored_data[30:0] <= stored_data[31:1];
+        end
+    end
+
+    assign data_out = stored_data;
 
 endmodule
