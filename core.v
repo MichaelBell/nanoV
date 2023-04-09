@@ -54,12 +54,12 @@ module nanoV_core (
     reg [4:0] shift_amt_reg;
     always @(posedge clk) begin
         if (counter < 5 && cycle == 0) begin
-            shift_amt_reg[4] <= data_rs2;
+            shift_amt_reg[4] <= alu_op[2] ? data_rs2 : ~data_rs2;
             shift_amt_reg[3:0] <= shift_amt_reg[4:1];
         end
     end
 
-    wire [4:0] shift_amt = alu_select_rs2 ? shift_amt_reg : i_imm[4:0];
+    wire [4:0] shift_amt = alu_select_rs2 ? shift_amt_reg : alu_op[2] ? i_imm[4:0] : ~i_imm[4:0];
     wire shifter_out;
     wire shift_stored;
     nanoV_shift shifter({instr[30],alu_op[2:0]}, counter, stored_data, shift_amt, shifter_out, shift_stored, shift_in);
