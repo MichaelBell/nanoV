@@ -16,6 +16,7 @@ module nanoV_core (
     output branch
 );
 
+    wire is_jal = (instr[6:4] == 3'b110 && instr[2] == 1'b1);
     wire [31:0] i_imm = {{20{instr[31]}}, instr[31:20]};
     reg [31:0] stored_data;
 
@@ -57,8 +58,9 @@ module nanoV_core (
     wire shifter_out, shift_stored, shift_in;
     nanoV_shift shifter({instr[30],alu_op[2:0]}, counter, stored_data, shift_amt, shifter_out, shift_stored, shift_in);
 
-    assign data_rd = (alu_op[1:0] == 2'b01) ? shifter_out : alu_out;
-    assign branch = 1'b0;
+    assign data_rd = is_jal ? 1'b0 :  // TODO
+                     (alu_op[1:0] == 2'b01) ? shifter_out : alu_out;
+    assign branch = is_jal;
 
     // Various instructions require us to buffer a register
     wire store_data_in = (alu_op[1:0] == 2'b01) ? data_rs1 : data_rs2;

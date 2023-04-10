@@ -59,6 +59,9 @@ module nanoV_cpu (
     reg [23:0] pc;
     reg [7:0] read_cmd;
     
+    wire [23:0] next_pc = (read_instr && counter == 5'b11111 && next_cycle == instr_cycles) ? pc + 2 : 
+                          (take_branch && counter == 0 && cycle == 1) ? data_out[23:0] : pc;
+
     always @(posedge clk) begin
         if (!rstn) begin
             start_instr_stream <= 1;
@@ -68,15 +71,14 @@ module nanoV_cpu (
             pc <= 0;
             read_cmd <= 8'b00000011;
         end else begin
-            if (take_branch && counter == 0) begin
-                pc <= data_out[23:0];
+            read_cmd <= {read_cmd[6:0], next_pc[23]};
+            pc       <= {next_pc[22:0], read_cmd[7]};
+            if (take_branch && counter == 0 && cycle == 1) begin
                 read_instr <= 0;
                 start_instr_stream <= 1;                
                 starting_instr_stream <= 0;
                 spi_select <= 1;
             end else begin
-                read_cmd <= {read_cmd[6:0], pc[23]};
-                pc       <= {pc[22:0], read_cmd[7]};
                 if (counter == 5'b11101) begin
                     if (start_instr_stream) begin
                         start_instr_stream <= 0;
