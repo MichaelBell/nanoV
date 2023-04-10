@@ -3,33 +3,31 @@
    Aim is to support RV32E 
  */
 
-module tb_alu_register (
+module tb_cpu (
     input clk,
     input rstn,
 
-    input [31:0] instr,
-    input [1:0] cycle,
+    input spi_data_in,
 
-    output [31:0] data_out,
-    output branch
+    output spi_select,
+    output spi_out
 );
 
 `ifdef COCOTB_SIM
 initial begin
   $dumpfile ("nanoV.vcd");
-  $dumpvars (0, tb_alu_register);
+  $dumpvars (0, tb_cpu);
   #1;
 end
 `endif
 
     wire branch;
-    nanoV_core core (
+    nanoV_cpu cpu (
         clk,
         rstn,
-        instr,
-        cycle,
-        data_out,
-        branch
+        spi_data_in,
+        spi_select,
+        spi_out
     );
 
 endmodule

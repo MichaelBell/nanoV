@@ -1,6 +1,6 @@
 /* A RISC-V core designed to use minimal area.
   
-   Aim is to support RV32E 
+   This core module takes instructions and produces output data
  */
 
 module nanoV_core (
@@ -8,19 +8,13 @@ module nanoV_core (
     input rstn,
 
     input [31:0] instr,
-    input [1:0] cycle,
+    input [2:0] cycle,
+    input [4:0] counter,
 
+    input shift_data_out,
     output [31:0] data_out,
     output branch
 );
-
-    reg [4:0] counter;
-    always @(posedge clk)
-        if (!rstn) begin
-            counter <= 0;
-        end else begin
-            counter <= counter + 1;
-        end
 
     wire [31:0] i_imm = {{20{instr[31]}}, instr[31:20]};
     reg [31:0] stored_data;
@@ -64,11 +58,11 @@ module nanoV_core (
     nanoV_shift shifter({instr[30],alu_op[2:0]}, counter, stored_data, shift_amt, shifter_out, shift_stored, shift_in);
 
     assign data_rd = (alu_op[1:0] == 2'b01) ? shifter_out : alu_out;
-    assign branch = slt;
+    assign branch = 1'b0;
 
     // Various instructions require us to buffer a register
     wire store_data_in = (alu_op[1:0] == 2'b01) ? data_rs1 : data_rs2;
-    wire do_store = ((alu_op[1:0] == 2'b01) && (cycle == 0 || shift_stored)) || (instr[6:2] == 5'b01000);
+    wire do_store = ((alu_op[1:0] == 2'b01) && (cycle == 0 || shift_stored)) || (instr[6:2] == 5'b01000) || shift_data_out;
     always @(posedge clk) begin
         if (do_store) begin
             stored_data[31] <= ((alu_op[1:0] == 2'b01) && (cycle == 1 && shift_stored)) ? shift_in : store_data_in;
