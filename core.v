@@ -10,8 +10,10 @@ module nanoV_core (
     input [31:0] instr,
     input [2:0] cycle,
     input [4:0] counter,
+    input pc,
 
     input shift_data_out,
+    output shift_pc,
     output [31:0] data_out,
     output branch
 );
@@ -58,7 +60,7 @@ module nanoV_core (
     wire shifter_out, shift_stored, shift_in;
     nanoV_shift shifter({instr[30],alu_op[2:0]}, counter, stored_data, shift_amt, shifter_out, shift_stored, shift_in);
 
-    assign data_rd = is_jal ? 1'b0 :  // TODO
+    assign data_rd = is_jal ? pc :
                      (alu_op[1:0] == 2'b01) ? shifter_out : alu_out;
     assign branch = is_jal;
 
@@ -73,5 +75,7 @@ module nanoV_core (
     end
 
     assign data_out = stored_data;
+
+    assign shift_pc = is_jal;
 
 endmodule

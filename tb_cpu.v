@@ -21,7 +21,6 @@ initial begin
 end
 `endif
 
-    wire branch;
     nanoV_cpu cpu (
         clk,
         rstn,
@@ -29,5 +28,7 @@ end
         spi_select,
         spi_out
     );
+
+    wire is_buffered = 0;
 
 endmodule

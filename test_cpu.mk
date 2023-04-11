@@ -12,7 +12,12 @@ COMPILE_ARGS += -DICE40 -DNO_ICE40_DEFAULT_ASSIGNMENTS
 VERILOG_SOURCES += $(PWD)/ice40_cells_sim.v
 
 # TOPLEVEL is the name of the toplevel module in your Verilog or VHDL file
+ifeq ($(TOP),yes)
+TOPLEVEL = tb_top
+VERILOG_SOURCES += $(PWD)/top.v $(PWD)/tb_top.v $(PWD)/ledscan.v
+else
 TOPLEVEL = tb_cpu
+endif
 
 # MODULE is the basename of the Python test file
 MODULE = test_cpu

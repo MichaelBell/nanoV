@@ -17,8 +17,11 @@ set_io --warn-no-port lcol4 	C5
 #set_io --warn-no-port button3   A11
 #set_io --warn-no-port button4   A5
 
-set_io --warn-no-port i   C11
+set_io --warn-no-port spi_miso    L1
+set_io --warn-no-port spi_select  M1
+set_io --warn-no-port spi_clk_out N1
+set_io --warn-no-port spi_mosi    P1
+
 
 set_io --warn-no-port clk12MHz	P7
 set_io --warn-no-port rstn	C6
-set_io --warn-no-port cpu_clk	H1

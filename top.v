@@ -1,8 +1,11 @@
 module nanoV_top (
     input clk12MHz,
-    input cpu_clk,
     input rstn,
-    input i,
+
+    input spi_miso,
+    output reg spi_select,
+    output spi_clk_out,
+    output reg spi_mosi,
 
     output led1,
     output led2,
@@ -17,14 +20,51 @@ module nanoV_top (
     output lcol3,
     output lcol4);
 
-    reg [31:0] instr;
-    wire [31:0] data;
+    wire cpu_clk;
+`ifdef SIM
+    assign cpu_clk = clk12MHz;
+`else
+    SB_PLL40_CORE #(
+      .FEEDBACK_PATH("SIMPLE"),
+      .PLLOUT_SELECT("GENCLK"),
+      .DIVR(4'b0000),
+      .DIVF(7'b1010100),
+      .DIVQ(3'b110),        // Use 3'b101 for ~32MHz, 3'b110 is ~16MHz
+      .FILTER_RANGE(3'b001)
+     ) SB_PLL40_CORE_inst (
+      .RESETB(1'b1),
+      .BYPASS(1'b0),
+      .PLLOUTCORE(cpu_clk),
+      .REFERENCECLK(clk12MHz)
+    );
+`endif
 
-    nanoV_core nano(cpu_clk, rstn, instr, 2'b00, data);
+    reg [31:0] data;
+    reg buffered_spi_in;
+    wire spi_data_out, spi_select_out;
+    nanoV_cpu nano(cpu_clk, rstn, buffered_spi_in, spi_select_out, spi_data_out);
 
     always @(posedge cpu_clk) begin
-        instr <= {instr[30:0],i};
+        if (spi_select) begin
+            data <= {data[30:0],spi_mosi};
+        end
     end
+
+    // TODO: Probably need to use SB_IO directly for reading/writing with good timing
+    always @(negedge cpu_clk) begin
+        buffered_spi_in <= spi_miso;
+    end
+
+    always @(posedge cpu_clk) begin
+        if (!rstn)
+            spi_select <= 1;
+        else
+            spi_select <= spi_select_out;
+
+        spi_mosi <= spi_data_out;
+    end
+
+    assign spi_clk_out = !cpu_clk;
 
     // map the output of ledscan to the port pins
     wire [7:0] leds_out;

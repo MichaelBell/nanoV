@@ -2,7 +2,7 @@
 PROJ      = nanoV
 
 # Files
-FILES = ledscan.v big_7seg.v top.v core.v alu.v register.v shift.v
+FILES = ledscan.v big_7seg.v top.v core.v alu.v register.v shift.v cpu.v
 
 .PHONY: iceFUN clean burn
 

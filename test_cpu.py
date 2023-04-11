@@ -16,6 +16,8 @@ async def test_start(nv):
     nv.rstn.value = 1
     assert nv.spi_select.value == 1
     await ClockCycles(nv.clk, 30)
+    if nv.is_buffered.value == 1:
+        await ClockCycles(nv.clk, 1)
     assert nv.spi_select.value == 1    
 
     read_cmd = 3
@@ -31,20 +33,23 @@ async def test_start(nv):
         assert nv.spi_out.value == 0
 
     # Simulate buffer latency
-    await ClockCycles(nv.clk, 1)
+    await Timer(1, "ns")
 
     # Now flow in a command
     instr = InstructionADDI(x1, x0, 279).encode()
     for i in range(32):
-        nv.spi_data_in = (instr >> i) & 1
+        nv.spi_data_in.value = (instr >> i) & 1
         await ClockCycles(nv.clk, 1)
+        await Timer(1, "ns")
     
     instr = InstructionSW(x0, x1, 0).encode()
     for i in range(32):
-        nv.spi_data_in = (instr >> i) & 1
+        nv.spi_data_in.value = (instr >> i) & 1
         await ClockCycles(nv.clk, 1)
+        await Timer(1, "ns")
 
     instr = InstructionNOP().encode()
-    for i in range(32):
-        nv.spi_data_in = (instr >> i) & 1
+    for i in range(64):
+        nv.spi_data_in.value = (instr >> i) & 1
         await ClockCycles(nv.clk, 1)
+        await Timer(1, "ns")

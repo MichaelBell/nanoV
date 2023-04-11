@@ -41,6 +41,7 @@ module nanoV_cpu (
     wire [31:0] data_out;
     wire shift_data_out;
     wire take_branch;
+    wire read_pc;
 
     nanoV_core core (
         clk,
@@ -48,7 +49,9 @@ module nanoV_cpu (
         instr,
         cycle,
         counter,
+        pc[0],
         shift_data_out,
+        read_pc,
         data_out,
         take_branch
     );
@@ -56,11 +59,13 @@ module nanoV_cpu (
     reg start_instr_stream;
     reg starting_instr_stream;
     reg read_instr;
-    reg [23:0] pc;
-    reg [7:0] read_cmd;
+    reg [21:0] pc;
+    wire starting_send_pc = counter[4:3] != 0 && counter < 30;
+    wire starting_read_cmd = counter[2] && !counter[1];
+    wire starting_data_out = starting_send_pc ? pc[21] : starting_read_cmd;
     
-    wire [23:0] next_pc = (read_instr && counter == 5'b11111 && next_cycle == instr_cycles) ? pc + 2 : 
-                          (take_branch && counter == 0 && cycle == 1) ? data_out[23:0] : pc;
+    wire [21:0] next_pc = (read_instr && counter == 31 && next_cycle == instr_cycles) ? pc + 4 : 
+                          (take_branch && counter == 0 && cycle == 1) ? data_out[21:0] : pc;
 
     always @(posedge clk) begin
         if (!rstn) begin
@@ -69,17 +74,14 @@ module nanoV_cpu (
             read_instr <= 0;
             spi_select <= 1;
             pc <= 0;
-            read_cmd <= 8'b00000011;
         end else begin
-            read_cmd <= {read_cmd[6:0], next_pc[23]};
-            pc       <= {next_pc[22:0], read_cmd[7]};
             if (take_branch && counter == 0 && cycle == 1) begin
                 read_instr <= 0;
                 start_instr_stream <= 1;                
                 starting_instr_stream <= 0;
                 spi_select <= 1;
             end else begin
-                if (counter == 5'b11101) begin
+                if (counter == 29) begin
                     if (start_instr_stream) begin
                         start_instr_stream <= 0;
                         starting_instr_stream <= 1;
@@ -91,13 +93,18 @@ module nanoV_cpu (
                     end
                 end
             end
+
+            if (starting_instr_stream && starting_send_pc)
+                pc <= {pc[20:0],pc[21]};
+            else if (read_pc)
+                pc <= {pc[0],pc[21:1]};
+            else
+                pc <= next_pc;
         end
     end
 
     assign shift_data_out = starting_instr_stream;
-    // TODO Probably need to read from earlier in the read cmd bitfield to account for 
-    // io delays, and fix the reset value of read_cmd appropriately.
-    assign spi_out = starting_instr_stream ? read_cmd[5] : data_out[0];
+    assign spi_out = starting_instr_stream ? starting_data_out : data_out[0];
 
     always @(posedge clk) begin
         if (!rstn) begin
