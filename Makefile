@@ -11,6 +11,9 @@ iceFUN:
 	yosys -p "synth_ice40 -top nanoV_top -json $(PROJ).json" -DICE40 $(FILES) > yosys.log
 	@grep Warn yosys.log || true
 	@grep Error yosys.log || true
+	@grep "   Number of cells" yosys.log
+	@grep "     SB_DFF" yosys.log | awk '{sum+=$$2;}END{printf("     SB_DFF* %25d\n", sum);}'
+	@grep "     SB_LUT" yosys.log
 	@echo
 
 	# Place and route using nextpnr
