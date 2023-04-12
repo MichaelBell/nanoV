@@ -39,15 +39,18 @@ module nanoV_top (
     );
 `endif
 
-    reg [31:0] data;
     reg buffered_spi_in;
-    wire spi_data_out, spi_select_out;
-    nanoV_cpu nano(cpu_clk, rstn, buffered_spi_in, spi_select_out, spi_data_out);
+    wire spi_data_out, spi_select_out, spi_clk_enable;
+    wire [31:0] raw_data_out;
+    wire latch_data_out;
+    nanoV_cpu nano(cpu_clk, rstn, buffered_spi_in, spi_select_out, spi_data_out, spi_clk_enable, raw_data_out, latch_data_out);
 
+    reg [31:0] data;
     always @(posedge cpu_clk) begin
-        if (spi_select) begin
-            data <= {data[30:0],spi_mosi};
-        end
+        if (!rstn)
+            data <= 0;
+        else if (latch_data_out)
+            data <= raw_data_out;
     end
 
     // TODO: Probably need to use SB_IO directly for reading/writing with good timing
@@ -64,7 +67,7 @@ module nanoV_top (
         spi_mosi <= spi_data_out;
     end
 
-    assign spi_clk_out = !cpu_clk;
+    assign spi_clk_out = !cpu_clk && spi_clk_enable;
 
     // map the output of ledscan to the port pins
     wire [7:0] leds_out;

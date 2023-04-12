@@ -9,7 +9,11 @@ module nanoV_cpu (
 
     input spi_data_in,
     output reg spi_select,
-    output spi_out
+    output spi_out,
+    output reg spi_clk_enable,
+
+    output [31:0] data_out,
+    output reg store_data_out
 );
 
     reg [4:0] counter;
@@ -21,28 +25,35 @@ module nanoV_cpu (
             counter <= next_counter[4:0];
         end
 
+    function [2:0] cycles_for_instr(input [31:0] instr);
+        if (instr[6:5] == 2'b11) cycles_for_instr = 3;  // Jump
+        else if (instr[6] == 0 && instr[4] == 1 && instr[2] == 0 && instr[13:12] == 2'b01) cycles_for_instr = 2; // Shift
+        else cycles_for_instr = 1;
+    endfunction
+
     wire is_jmp = (instr[6:5] == 2'b11);
     reg [2:0] cycle;
-    reg [2:0] instr_cycles_reg;
-    wire [2:0] instr_cycles = instr_cycles_reg;
+    reg [2:0] instr_cycles;
     wire [2:0] next_cycle = cycle + next_counter[5];
     reg [31:0] next_instr;
     reg [31:0] instr;
     always @(posedge clk)
         if (!rstn) begin
             cycle <= 0;
-            instr <= 32'b000000000000_00000_000_00000_0010011;
-            instr_cycles_reg <= 3;
+            instr <= 32'b000000000000_00000_000_00000_1101111;
+            instr_cycles <= 3;
         end else begin
             if (next_cycle == instr_cycles) begin
                 cycle <= 0;
                 instr <= next_instr;
-                instr_cycles_reg <= (next_instr[6:5] == 2'b11) ? 3 : 1;  // TODO
+                instr_cycles <= cycles_for_instr(next_instr);
             end else
                 cycle <= next_cycle;
         end
 
-    wire [31:0] data_out;
+    always @(posedge clk)
+        store_data_out <= (counter == 31 && instr[6:2] == 5'b01000);
+
     wire shift_data_out;
     wire take_branch;
     wire read_pc;
@@ -78,6 +89,7 @@ module nanoV_cpu (
             read_instr <= 0;
             first_instr <= 0;
             spi_select <= 1;
+            spi_clk_enable <= 1;
             pc <= 0;
         end else begin
             if (take_branch && counter == 0) begin
@@ -93,13 +105,19 @@ module nanoV_cpu (
                         spi_select <= 0;
                         read_instr <= 0;
                         first_instr <= 0;
+                        spi_clk_enable <= 1;
                     end else if (starting_instr_stream) begin
                         start_instr_stream <= 0;
                         starting_instr_stream <= 0;
                         read_instr <= 1;
                         first_instr <= 2'b11;
-                    end else begin
+                    end else if (cycle + 1 == instr_cycles) begin
                         first_instr <= {1'b0,first_instr[1]};
+                        read_instr <= 1;
+                        spi_clk_enable <= 1;
+                    end else begin
+                        read_instr <= 0;
+                        spi_clk_enable <= 0;
                     end
                 end
             end
