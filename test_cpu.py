@@ -62,22 +62,38 @@ async def test_jmp(nv):
     if nv.is_buffered.value == 0:
         await ClockCycles(nv.clk, 1)
 
-    await send_instr(nv, InstructionJAL(x1, 320).encode())
+    await send_instr(nv, InstructionNOP().encode())          # 0
+    await send_instr(nv, InstructionJAL(x1, 320).encode())   # 4 -> 324
 
-    #assert nv.spi_select.value == 0
-    await ClockCycles(nv.clk, 2)
+    assert nv.spi_select.value == 0
+    await ClockCycles(nv.clk, 3)
     if nv.is_buffered.value == 1:
         await ClockCycles(nv.clk, 1)
-    #assert nv.spi_select.value == 1
-    await ClockCycles(nv.clk, 29)
-    #assert nv.spi_select.value == 1
+    assert nv.spi_select.value == 1
+    await ClockCycles(nv.clk, 28)
+    assert nv.spi_select.value == 1
 
-    await expect_read(nv, 320)
+    await expect_read(nv, 324)
 
     if nv.is_buffered.value == 0:
         await ClockCycles(nv.clk, 1)
 
-    await send_instr(nv, InstructionNOP().encode())
-    await send_instr(nv, InstructionNOP().encode())
+    await send_instr(nv, InstructionSW(x0, x1, 0).encode())  # 324
+    await send_instr(nv, InstructionJAL(x1, 12000).encode()) # 328 -> 12328
+
+    assert nv.spi_select.value == 0
+    await ClockCycles(nv.clk, 3)
+    if nv.is_buffered.value == 1:
+        await ClockCycles(nv.clk, 1)
+    assert nv.spi_select.value == 1
+    await ClockCycles(nv.clk, 28)
+    assert nv.spi_select.value == 1
+
+    await expect_read(nv, 12328)
+
+    if nv.is_buffered.value == 0:
+        await ClockCycles(nv.clk, 1)
+
+    await send_instr(nv, InstructionSW(x0, x1, 0).encode()) # 12328
     await send_instr(nv, InstructionNOP().encode())
     await send_instr(nv, InstructionNOP().encode())
