@@ -20,6 +20,10 @@ module nanoV_core (
 
     wire is_jal = (instr[6:4] == 3'b110 && instr[2] == 1'b1);
     wire [31:0] i_imm = {{20{instr[31]}}, instr[31:20]};
+    //wire [31:0] s_imm = {{20{instr[31]}}, instr[31:25], instr[11:7]};
+    //wire [31:0] b_imm = {{20{instr[31]}}, instr[7], instr[30:25], instr[11:8], 1'b0};
+    //wire [31:0] u_imm = {instr[31:12], 12'h000};
+    wire [31:0] j_imm = {{12{instr[31]}}, instr[19:12], instr[20], instr[30:21], 1'b0};
     reg [31:0] stored_data;
 
     wire [3:0] rs1 = instr[18:15];
@@ -27,22 +31,23 @@ module nanoV_core (
     wire [3:0] rd = instr[10:7];
     wire data_rs1, data_rs2, data_rd;
     wire data_rd_next = slt;
-    wire wr_en = alu_write;
+    wire wr_en = alu_write || (is_jal && cycle == 1);
     wire wr_next_en = slt_req;
     wire read_through = slt_req;
     nanoV_registers registers(clk, rstn, wr_en, wr_next_en, read_through, rs1, rs2, rd, data_rs1, data_rs2, data_rd, data_rd_next);
 
     reg cy;
-    wire [3:0] alu_op = {instr[30] && instr[5],instr[14:12]};
-    wire alu_select_rs2 = instr[5];
+    wire [3:0] alu_op = is_jal ? 4'b0000 : {instr[30] && instr[5],instr[14:12]};
+    wire alu_select_rs2 = instr[5] && !is_jal;
     wire alu_write = (instr[4:0] == 5'b10011);
-    wire alu_imm = i_imm[counter];
+    wire alu_imm = is_jal ? ((cycle == 0) ? j_imm[counter] : 4) : i_imm[counter];
+    wire alu_a_in = is_jal ? pc : data_rs1;
     wire alu_b_in = alu_select_rs2 ? data_rs2 : alu_imm;
     wire cy_in = (counter == 0) ? (alu_op[1] || alu_op[3]) : cy;
     wire alu_out, cy_out, lts;
     wire slt = alu_op[0] == 1 ? ~cy_out : lts;
     wire slt_req = (counter == 5'b11111) && (alu_op[2:1] == 2'b01) && instr[4];
-    nanoV_alu alu(alu_op, data_rs1, alu_b_in, cy_in, alu_out, cy_out, lts);
+    nanoV_alu alu(alu_op, alu_a_in, alu_b_in, cy_in, alu_out, cy_out, lts);
 
     always @(posedge clk) begin
         cy <= cy_out;
@@ -62,13 +67,17 @@ module nanoV_core (
 
     assign data_rd = is_jal ? pc :
                      (alu_op[1:0] == 2'b01) ? shifter_out : alu_out;
-    assign branch = is_jal;
+    assign branch = is_jal && (cycle == 0);
 
     // Various instructions require us to buffer a register
-    wire store_data_in = (alu_op[1:0] == 2'b01) ? data_rs1 : data_rs2;
-    wire do_store = ((alu_op[1:0] == 2'b01) && (cycle == 0 || shift_stored)) || (instr[6:2] == 5'b01000) || shift_data_out;
+    wire store_data_in = (is_jal && cycle == 0) ? alu_out :
+                         (alu_op[1:0] == 2'b01) ? data_rs1 : data_rs2;
+    wire do_store = ((alu_op[1:0] == 2'b01) && (cycle == 0 || shift_stored)) || (instr[6:2] == 5'b01000) || (is_jal && cycle == 0);
     always @(posedge clk) begin
-        if (do_store) begin
+        if (shift_data_out) begin
+            stored_data[31:1] <= stored_data[30:0];
+            stored_data[0] <= stored_data[31];
+        end else if (do_store) begin
             stored_data[31] <= ((alu_op[1:0] == 2'b01) && (cycle == 1 && shift_stored)) ? shift_in : store_data_in;
             stored_data[30:0] <= stored_data[31:1];
         end
@@ -76,6 +85,6 @@ module nanoV_core (
 
     assign data_out = stored_data;
 
-    assign shift_pc = is_jal;
+    assign shift_pc = is_jal && counter < 22 && cycle < 2;
 
 endmodule

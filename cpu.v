@@ -21,8 +21,10 @@ module nanoV_cpu (
             counter <= next_counter[4:0];
         end
 
+    wire is_jmp = (instr[6:5] == 2'b11);
     reg [2:0] cycle;
-    wire [2:0] instr_cycles = 1;  // TODO
+    reg [2:0] instr_cycles_reg;
+    wire [2:0] instr_cycles = instr_cycles_reg;
     wire [2:0] next_cycle = cycle + next_counter[5];
     reg [31:0] next_instr;
     reg [31:0] instr;
@@ -30,10 +32,12 @@ module nanoV_cpu (
         if (!rstn) begin
             cycle <= 0;
             instr <= 32'b000000000000_00000_000_00000_0010011;
+            instr_cycles_reg <= 3;
         end else begin
             if (next_cycle == instr_cycles) begin
                 cycle <= 0;
                 instr <= next_instr;
+                instr_cycles_reg <= (next_instr[6:5] == 2'b11) ? 3 : 1;  // TODO
             end else
                 cycle <= next_cycle;
         end
@@ -59,23 +63,24 @@ module nanoV_cpu (
     reg start_instr_stream;
     reg starting_instr_stream;
     reg read_instr;
+    reg [1:0] first_instr;
     reg [21:0] pc;
     wire starting_send_pc = counter[4:3] != 0 && counter < 30;
     wire starting_read_cmd = counter[2] && !counter[1];
-    wire starting_data_out = starting_send_pc ? pc[21] : starting_read_cmd;
+    wire starting_data_out = starting_send_pc ? (is_jmp ? data_out[29] : pc[21]) : starting_read_cmd;
     
-    wire [21:0] next_pc = (read_instr && counter == 31 && next_cycle == instr_cycles) ? pc + 4 : 
-                          (take_branch && counter == 0 && cycle == 1) ? data_out[21:0] : pc;
+    wire [21:0] next_pc = (counter == 31 && next_cycle == instr_cycles) ? (is_jmp ? data_out[21:0] : pc + ((read_instr && !first_instr[0]) ? 4 : 0)) : pc;
 
     always @(posedge clk) begin
         if (!rstn) begin
             start_instr_stream <= 1;
             starting_instr_stream <= 0;
             read_instr <= 0;
+            first_instr <= 0;
             spi_select <= 1;
             pc <= 0;
         end else begin
-            if (take_branch && counter == 0 && cycle == 1) begin
+            if (take_branch && counter == 0) begin
                 read_instr <= 0;
                 start_instr_stream <= 1;                
                 starting_instr_stream <= 0;
@@ -86,10 +91,15 @@ module nanoV_cpu (
                         start_instr_stream <= 0;
                         starting_instr_stream <= 1;
                         spi_select <= 0;
+                        read_instr <= 0;
+                        first_instr <= 0;
                     end else if (starting_instr_stream) begin
                         start_instr_stream <= 0;
                         starting_instr_stream <= 0;
                         read_instr <= 1;
+                        first_instr <= 2'b11;
+                    end else begin
+                        first_instr <= {1'b0,first_instr[1]};
                     end
                 end
             end
@@ -103,7 +113,7 @@ module nanoV_cpu (
         end
     end
 
-    assign shift_data_out = starting_instr_stream;
+    assign shift_data_out = is_jmp && (cycle == 1);
     assign spi_out = starting_instr_stream ? starting_data_out : data_out[0];
 
     always @(posedge clk) begin

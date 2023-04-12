@@ -7,8 +7,7 @@ from cocotb.triggers import Timer, ClockCycles
 from riscvmodel.insn import *
 from riscvmodel.regnames import x0, x1, x2, x3
 
-@cocotb.test()
-async def test_start(nv):
+async def do_start(nv):
     clock = Clock(nv.clk, 4, units="ns")
     cocotb.start_soon(clock.start())
     nv.rstn.value = 0
@@ -20,6 +19,7 @@ async def test_start(nv):
         await ClockCycles(nv.clk, 1)
     assert nv.spi_select.value == 1    
 
+async def expect_read(nv, addr):
     read_cmd = 3
     for i in range(8):
         await ClockCycles(nv.clk, 1)
@@ -30,26 +30,54 @@ async def test_start(nv):
     for i in range(24):    
         await ClockCycles(nv.clk, 1)
         assert nv.spi_select.value == 0
-        assert nv.spi_out.value == 0
+        assert nv.spi_out.value == (1 if (addr & (0x800000 >> i)) != 0 else 0)
 
+async def send_instr(nv, instr):
     # Simulate buffer latency
     await Timer(1, "ns")
 
-    # Now flow in a command
-    instr = InstructionADDI(x1, x0, 279).encode()
-    for i in range(32):
-        nv.spi_data_in.value = (instr >> i) & 1
-        await ClockCycles(nv.clk, 1)
-        await Timer(1, "ns")
-    
-    instr = InstructionSW(x0, x1, 0).encode()
     for i in range(32):
         nv.spi_data_in.value = (instr >> i) & 1
         await ClockCycles(nv.clk, 1)
         await Timer(1, "ns")
 
-    instr = InstructionNOP().encode()
-    for i in range(64):
-        nv.spi_data_in.value = (instr >> i) & 1
+@cocotb.test()
+async def test_start(nv):
+    await do_start(nv)
+    await expect_read(nv, 0)
+
+    if nv.is_buffered.value == 0:
         await ClockCycles(nv.clk, 1)
-        await Timer(1, "ns")
+
+    await send_instr(nv, InstructionADDI(x1, x0, 279).encode())
+    await send_instr(nv, InstructionSW(x0, x1, 0).encode())
+    await send_instr(nv, InstructionNOP().encode())
+    await send_instr(nv, InstructionNOP().encode())    
+
+@cocotb.test()
+async def test_jmp(nv):
+    await do_start(nv)
+    await expect_read(nv, 0)
+
+    if nv.is_buffered.value == 0:
+        await ClockCycles(nv.clk, 1)
+
+    await send_instr(nv, InstructionJAL(x1, 320).encode())
+
+    #assert nv.spi_select.value == 0
+    await ClockCycles(nv.clk, 2)
+    if nv.is_buffered.value == 1:
+        await ClockCycles(nv.clk, 1)
+    #assert nv.spi_select.value == 1
+    await ClockCycles(nv.clk, 29)
+    #assert nv.spi_select.value == 1
+
+    await expect_read(nv, 320)
+
+    if nv.is_buffered.value == 0:
+        await ClockCycles(nv.clk, 1)
+
+    await send_instr(nv, InstructionNOP().encode())
+    await send_instr(nv, InstructionNOP().encode())
+    await send_instr(nv, InstructionNOP().encode())
+    await send_instr(nv, InstructionNOP().encode())
