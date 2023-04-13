@@ -189,6 +189,38 @@ async def test_branch(nv):
     if nv.is_buffered.value == 0:
         await ClockCycles(nv.clk, 1)
 
-    await send_instr(nv, InstructionSW(x0, x1, 0).encode()) # 2128
+    await send_instr(nv, InstructionBGE(x0, x1, -400).encode()) # 2128 -> 1728
+
+    await send_instr(nv, InstructionNOP().encode())
+    assert nv.spi_select.value == 0
+    await ClockCycles(nv.clk, 2)
+    if nv.is_buffered.value == 1:
+        await ClockCycles(nv.clk, 1)
+    assert nv.spi_select.value == 1
+    await ClockCycles(nv.clk, 29)
+    assert nv.spi_select.value == 1
+
+    await expect_read(nv, 1728)
+
+    if nv.is_buffered.value == 0:
+        await ClockCycles(nv.clk, 1)
+
+    await send_instr(nv, InstructionBGE(x1, x0, 20).encode())  # 1728
+    await send_instr(nv, InstructionBGEU(x1, x0, 2000).encode()) # 1732 -> 3732
+
+    await send_instr(nv, InstructionNOP().encode())
+    assert nv.spi_select.value == 0
+    await ClockCycles(nv.clk, 2)
+    if nv.is_buffered.value == 1:
+        await ClockCycles(nv.clk, 1)
+    assert nv.spi_select.value == 1
+    await ClockCycles(nv.clk, 29)
+    assert nv.spi_select.value == 1
+
+    await expect_read(nv, 3732)
+
+    if nv.is_buffered.value == 0:
+        await ClockCycles(nv.clk, 1)
+
     await send_instr(nv, InstructionNOP().encode())
     await send_instr(nv, InstructionNOP().encode())

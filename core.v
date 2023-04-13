@@ -74,7 +74,7 @@ module nanoV_core (
     nanoV_shift shifter({instr[30],alu_op[2:0]}, counter, stored_data, shift_amt, shifter_out, shift_stored, shift_in);
 
     assign data_rd = (alu_op[1:0] == 2'b01) ? shifter_out : alu_out;
-    assign branch = cycle == 0 && ((is_jmp && counter == 0) || (is_branch && counter == 31 && slt));
+    assign branch = cycle == 0 && ((is_jmp && counter == 0) || (is_branch && counter == 31 && (slt ^ instr[12])));
 
     // Various instructions require us to buffer a register
     wire store_data_in = (is_jmp || is_branch_cycle1) ? alu_out :
