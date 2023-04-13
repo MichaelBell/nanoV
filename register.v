@@ -37,6 +37,8 @@ module nanoV_registers (
         last_rd <= rd;
     end
 
+    // This is a bottleneck.  Horrendous, but we could plumb in next_rs1 and next_rs2 to allow the
+    // comparison to be made on the previous clock.
     wire read_through_rs1 = last_read_through && (rs1 == last_rd);
     wire read_through_rs2 = last_read_through && (rs2 == last_rd);
 

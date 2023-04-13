@@ -39,10 +39,10 @@ module nanoV_core (
     wire read_through = wr_next_en;
     nanoV_registers registers(clk, rstn, wr_en, wr_next_en, read_through, rs1, rs2, rd, data_rs1, data_rs2, data_rd, data_rd_next);
 
-    reg cy;
+    reg cy, is_zero_reg;
     wire is_branch_cycle1 = is_branch && cycle[0];
     wire [3:0] alu_op = (is_jmp || is_branch_cycle1) ? 4'b0000 : 
-                        is_branch ? {2'b00,instr[14:13]} :
+                        is_branch ? {instr[14:13] == 0 ? 1'b1 : 1'b0,1'b0,instr[14:13]} :
                         {instr[30] && instr[5],instr[14:12]};
     wire alu_select_rs2 = instr[5] && !is_jmp && !is_branch_cycle1;
     wire alu_write = (instr[4:2] == 5'b100);
@@ -58,8 +58,12 @@ module nanoV_core (
     nanoV_alu alu(alu_op, alu_a_in, alu_b_in, cy_in, alu_out, cy_out, lts);
 
     always @(posedge clk) begin
+        if (counter == 31) is_zero_reg <= 1;
+        else if (alu_out) is_zero_reg <= 0;
         cy <= cy_out;
     end
+
+    wire is_zero = is_zero_reg && !alu_out;
 
     reg [4:0] shift_amt_reg;
     always @(posedge clk) begin
@@ -74,7 +78,8 @@ module nanoV_core (
     nanoV_shift shifter({instr[30],alu_op[2:0]}, counter, stored_data, shift_amt, shifter_out, shift_stored, shift_in);
 
     assign data_rd = (alu_op[1:0] == 2'b01) ? shifter_out : alu_out;
-    assign branch = cycle == 0 && ((is_jmp && counter == 0) || (is_branch && counter == 31 && (slt ^ instr[12])));
+    assign branch = cycle == 0 && ((is_jmp && counter == 0) || 
+                                   (is_branch && counter == 31 && ((instr[14] ? slt : is_zero) ^ instr[12])));
 
     // Various instructions require us to buffer a register
     wire store_data_in = (is_jmp || is_branch_cycle1) ? alu_out :
