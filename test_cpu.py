@@ -146,3 +146,49 @@ async def test_jmp(nv):
     await send_instr(nv, InstructionSW(x0, x1, 0).encode()) # 44
     await send_instr(nv, InstructionNOP().encode())
     await send_instr(nv, InstructionNOP().encode())
+
+@cocotb.test()
+async def test_branch(nv):
+    await do_start(nv)
+    await expect_read(nv, 0)
+
+    if nv.is_buffered.value == 0:
+        await ClockCycles(nv.clk, 1)
+
+    await send_instr(nv, InstructionADDI(x1, x0, -4).encode())  # 0
+    await send_instr(nv, InstructionBLT(x1, x0, 120).encode())      # 4 -> 124
+
+    await send_instr(nv, InstructionNOP().encode())
+    assert nv.spi_select.value == 0
+    await ClockCycles(nv.clk, 2)
+    if nv.is_buffered.value == 1:
+        await ClockCycles(nv.clk, 1)
+    assert nv.spi_select.value == 1
+    await ClockCycles(nv.clk, 29)
+    assert nv.spi_select.value == 1
+
+    await expect_read(nv, 124)
+
+    if nv.is_buffered.value == 0:
+        await ClockCycles(nv.clk, 1)
+
+    await send_instr(nv, InstructionBLT(x0, x1, 20).encode())  # 124
+    await send_instr(nv, InstructionBLTU(x0, x1, 2000).encode()) # 128 -> 2128
+
+    await send_instr(nv, InstructionNOP().encode())
+    assert nv.spi_select.value == 0
+    await ClockCycles(nv.clk, 2)
+    if nv.is_buffered.value == 1:
+        await ClockCycles(nv.clk, 1)
+    assert nv.spi_select.value == 1
+    await ClockCycles(nv.clk, 29)
+    assert nv.spi_select.value == 1
+
+    await expect_read(nv, 2128)
+
+    if nv.is_buffered.value == 0:
+        await ClockCycles(nv.clk, 1)
+
+    await send_instr(nv, InstructionSW(x0, x1, 0).encode()) # 2128
+    await send_instr(nv, InstructionNOP().encode())
+    await send_instr(nv, InstructionNOP().encode())
