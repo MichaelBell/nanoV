@@ -10,7 +10,11 @@ module tb_cpu (
     input spi_data_in,
 
     output spi_select,
-    output spi_out
+    output spi_out,
+    output spi_clk_enable,
+
+    output [31:0] data_out,
+    output store_data_out
 );
 
 `ifdef COCOTB_SIM
@@ -26,7 +30,10 @@ end
         rstn,
         spi_data_in,
         spi_select,
-        spi_out
+        spi_out,
+        spi_clk_enable,
+        data_out,
+        store_data_out
     );
 
     wire is_buffered = 0;

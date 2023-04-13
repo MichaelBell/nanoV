@@ -95,5 +95,54 @@ async def test_jmp(nv):
         await ClockCycles(nv.clk, 1)
 
     await send_instr(nv, InstructionSW(x0, x1, 0).encode()) # 12328
+    await send_instr(nv, InstructionJALR(x3, x1, 0).encode()) # 12332 -> 332
+
+    assert nv.spi_select.value == 0
+    await ClockCycles(nv.clk, 3)
+    if nv.is_buffered.value == 1:
+        await ClockCycles(nv.clk, 1)
+    assert nv.spi_select.value == 1
+    await ClockCycles(nv.clk, 28)
+    assert nv.spi_select.value == 1
+
+    await expect_read(nv, 332)
+
+    if nv.is_buffered.value == 0:
+        await ClockCycles(nv.clk, 1)
+
+    await send_instr(nv, InstructionSW(x0, x3, 0).encode())  # 332
+    await send_instr(nv, InstructionADDI(x2, x0, 80).encode()) # 336
+    await send_instr(nv, InstructionJALR(x3, x2, 0).encode()) # 340 -> 80
+
+    assert nv.spi_select.value == 0
+    await ClockCycles(nv.clk, 3)
+    if nv.is_buffered.value == 1:
+        await ClockCycles(nv.clk, 1)
+    assert nv.spi_select.value == 1
+    await ClockCycles(nv.clk, 28)
+    assert nv.spi_select.value == 1
+
+    await expect_read(nv, 80)
+
+    if nv.is_buffered.value == 0:
+        await ClockCycles(nv.clk, 1)
+
+    await send_instr(nv, InstructionSW(x0, x3, 0).encode())  # 80
+    await send_instr(nv, InstructionJAL(x1, -40).encode()) # 84 -> 44
+
+    assert nv.spi_select.value == 0
+    await ClockCycles(nv.clk, 3)
+    if nv.is_buffered.value == 1:
+        await ClockCycles(nv.clk, 1)
+    assert nv.spi_select.value == 1
+    await ClockCycles(nv.clk, 28)
+    assert nv.spi_select.value == 1
+
+    await expect_read(nv, 44)
+
+    if nv.is_buffered.value == 0:
+        await ClockCycles(nv.clk, 1)
+
+    await send_instr(nv, InstructionSW(x0, x1, 0).encode()) # 44
     await send_instr(nv, InstructionNOP().encode())
     await send_instr(nv, InstructionNOP().encode())
