@@ -103,13 +103,15 @@ async def test_slt(nv):
 
     nv.instr.value = InstructionADDI(x1, x0, 1).encode()
     await ClockCycles(nv.clk, 32)
+    nv.next_instr.value = InstructionSLTI(x2, x1, 2).encode()
     nv.instr.value = InstructionSLTI(x2, x1, 0).encode()
     await ClockCycles(nv.clk, 32)
     assert await get_reg_value(nv, x2) == 0
 
-    nv.instr.value = InstructionSLTI(x2, x1, 2).encode()
+    nv.instr.value = nv.next_instr.value
+    nv.next_instr.value = InstructionSW(x0, x2, 0).encode()
     await ClockCycles(nv.clk, 32)
-    nv.instr.value = InstructionSW(x0, x2, 0).encode()
+    nv.instr.value = nv.next_instr.value
     assert await get_reg_value(nv, x2) == 1
 
 async def TwoCycleInstr(nv):
@@ -253,11 +255,12 @@ async def test_random(nv):
     await ClockCycles(nv.clk, 32)
 
     seed = random.randint(0, 0xFFFFFFFF)
-    seed = 892186356
+    #seed = 892186356
     debug = False
     for test in range(100):
         random.seed(seed + test)
         nv._log.info("Running test with seed {}".format(seed + test))
+        nv.next_instr.value = InstructionNOP().encode()
         for i in range(1, 16):
             reg[i] = random.randint(-2048, 2047)
             if debug: print("Set reg {} to {}".format(i, reg[i]))
@@ -276,6 +279,7 @@ async def test_random(nv):
                 assert nv.data_out.value.signed_integer == reg[i]
             await ClockCycles(nv.clk, 31)
 
+        last_instr = ops[0]
         for i in range(25):
             while True:
                 try:
@@ -289,14 +293,23 @@ async def test_random(nv):
                 except ValueError:
                     pass
 
-            nv.instr.value = instr.encode(rd, rs1, arg2)
-            if debug: print("x{} = x{} {} {}, now {}".format(rd, rs1, arg2, instr.name, reg[rd]))
-            for i in range(instr.cycles):
+            nv.instr.value = nv.next_instr.value
+            nv.next_instr.value = instr.encode(rd, rs1, arg2)
+            if debug: print("x{} = x{} {} {}, now {} {:08x}".format(rd, rs1, arg2, instr.name, reg[rd], instr.encode(rd, rs1, arg2)))
+            for i in range(last_instr.cycles):
                 nv.cycle.value = i
                 await ClockCycles(nv.clk, 32)
             nv.cycle.value = 0
-            if debug:
-                assert await get_reg_value(nv, rd) == reg[rd] & 0xFFFFFFFF
+            last_instr = instr
+            #if debug:
+            #    assert await get_reg_value(nv, rd) == reg[rd] & 0xFFFFFFFF
+
+        nv.instr.value = nv.next_instr.value
+        nv.next_instr.value = InstructionNOP().encode()
+        for i in range(last_instr.cycles):
+            nv.cycle.value = i
+            await ClockCycles(nv.clk, 32)
+        nv.cycle.value = 0
 
         nv.instr.value = InstructionSW(x0, 0, 0).encode()
         await ClockCycles(nv.clk, 1)

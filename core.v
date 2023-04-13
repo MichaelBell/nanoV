@@ -7,6 +7,7 @@ module nanoV_core (
     input clk,
     input rstn,
 
+    input [30:0] next_instr,
     input [31:0] instr,
     input [2:0] cycle,
     input [4:0] counter,
@@ -35,11 +36,15 @@ module nanoV_core (
     wire data_rs1, data_rs2, data_rd;
     wire data_rd_next = slt;
 
+    wire last_count = (counter == 31);
+    wire [3:0] next_rs1 = last_count ? next_instr[18:15] : instr[18:15];
+    wire [3:0] next_rs2 = last_count ? next_instr[23:20] : instr[23:20];
+
     wire load_upper = (instr[6] == 0 && instr[4:2] == 3'b101);
     wire wr_en = alu_write || (is_jmp && cycle == 1) || load_upper;
     wire wr_next_en = slt_req;
     wire read_through = wr_next_en;
-    nanoV_registers registers(clk, rstn, wr_en, wr_next_en, read_through, rs1, rs2, rd, data_rs1, data_rs2, data_rd, data_rd_next);
+    nanoV_registers registers(clk, rstn, wr_en, wr_next_en, read_through, next_rs1, next_rs2, rs1, rs2, rd, data_rs1, data_rs2, data_rd, data_rd_next);
 
     reg cy, is_zero_reg;
     wire is_branch_cycle1 = is_branch && cycle[0];
@@ -57,11 +62,11 @@ module nanoV_core (
     wire cy_in = (counter == 0) ? (alu_op[1] || alu_op[3]) : cy;
     wire alu_out, cy_out, lts;
     wire slt = alu_op[0] == 1 ? ~cy_out : lts;
-    wire slt_req = (counter == 5'b11111) && (alu_op[2:1] == 2'b01) && instr[4];
+    wire slt_req = last_count && (alu_op[2:1] == 2'b01) && instr[4];
     nanoV_alu alu(alu_op, alu_a_in, alu_b_in, cy_in, alu_out, cy_out, lts);
 
     always @(posedge clk) begin
-        if (counter == 31) is_zero_reg <= 1;
+        if (last_count) is_zero_reg <= 1;
         else if (alu_out) is_zero_reg <= 0;
         cy <= cy_out;
     end
@@ -82,7 +87,7 @@ module nanoV_core (
 
     assign data_rd = (alu_op[1:0] == 2'b01) ? shifter_out : alu_out;
     assign branch = cycle == 0 && ((is_jmp && counter == 0) || 
-                                   (is_branch && counter == 31 && ((instr[14] ? slt : is_zero) ^ instr[12])));
+                                   (is_branch && last_count && ((instr[14] ? slt : is_zero) ^ instr[12])));
 
     // Various instructions require us to buffer a register
     wire store_data_in = (is_jmp || is_branch_cycle1) ? alu_out :

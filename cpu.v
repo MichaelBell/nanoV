@@ -65,6 +65,7 @@ module nanoV_cpu (
     nanoV_core core (
         clk,
         rstn,
+        next_instr[31:1],
         instr,
         cycle,
         counter,

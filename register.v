@@ -18,6 +18,9 @@ module nanoV_registers (
     input wr_next_en,
     input read_through,
 
+    input [3:0] next_rs1,
+    input [3:0] next_rs2,
+
     input [3:0] rs1,
     input [3:0] rs2,
     input [3:0] rd,
@@ -29,18 +32,13 @@ module nanoV_registers (
 );
 
     reg last_data_rd_next;
-    reg last_read_through;
-    reg [3:0] last_rd;
+    reg read_through_rs1, read_through_rs2;
+    wire may_read_through = read_through && rd != 0;
     always @(posedge clk) begin
         last_data_rd_next <= data_rd_next;
-        last_read_through <= read_through && rd != 0;
-        last_rd <= rd;
+        read_through_rs1 <= may_read_through && (next_rs1 == rd);
+        read_through_rs2 <= may_read_through && (next_rs2 == rd);
     end
-
-    // This is a bottleneck.  Horrendous, but we could plumb in next_rs1 and next_rs2 to allow the
-    // comparison to be made on the previous clock.
-    wire read_through_rs1 = last_read_through && (rs1 == last_rd);
-    wire read_through_rs2 = last_read_through && (rs2 == last_rd);
 
 `ifdef ICE40
     reg [4:0] read_addr;

@@ -7,6 +7,7 @@ module tb_core (
     input clk,
     input rstn,
 
+    input [31:0] next_instr,
     input [31:0] instr,
     input [2:0] cycle,
 
@@ -37,6 +38,7 @@ end
     nanoV_core core (
         clk,
         rstn,
+        next_instr[30:0],
         instr,
         cycle,
         counter,
