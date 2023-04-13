@@ -51,8 +51,12 @@ async def test_start(nv):
 
     await send_instr(nv, InstructionADDI(x1, x0, 279).encode())
     await send_instr(nv, InstructionSW(x0, x1, 0).encode())
+    await send_instr(nv, InstructionAUIPC(x2, 1).encode())
+    await send_instr(nv, InstructionSW(x0, x2, 0).encode())
+    assert nv.data.value == 279
     await send_instr(nv, InstructionNOP().encode())
     await send_instr(nv, InstructionNOP().encode())    
+    assert nv.data.value == (1 << 12) + 8
 
 @cocotb.test()
 async def test_jmp(nv):

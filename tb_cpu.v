@@ -13,7 +13,7 @@ module tb_cpu (
     output spi_out,
     output spi_clk_enable,
 
-    output [31:0] data_out,
+    output reg [31:0] data,
     output store_data_out
 );
 
@@ -25,6 +25,7 @@ initial begin
 end
 `endif
 
+    wire [31:0] data_out;
     nanoV_cpu cpu (
         clk,
         rstn,
@@ -35,6 +36,10 @@ end
         data_out,
         store_data_out
     );
+
+    always @(posedge clk)
+      if (store_data_out)
+        data <= data_out;
 
     wire is_buffered = 0;
 

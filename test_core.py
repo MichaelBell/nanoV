@@ -65,6 +65,32 @@ async def get_reg_value(nv, reg):
     return val
 
 @cocotb.test()
+async def test_lui(nv):
+    clock = Clock(nv.clk, 4, units="ns")
+    cocotb.start_soon(clock.start())
+    nv.rstn.value = 0
+    await ClockCycles(nv.clk, 2)
+    nv.rstn.value = 1
+    nv.instr.value = InstructionNOP().encode()
+    nv.cycle.value = 0
+    await ClockCycles(nv.clk, 32)
+
+    nv.instr.value = InstructionLUI(x1, 279).encode()
+    await ClockCycles(nv.clk, 32)
+    nv.instr.value = InstructionADDI(x2, x1, 3).encode()
+    await ClockCycles(nv.clk, 32)
+    nv.instr.value = InstructionSW(x0, x1, 0).encode()
+    await ClockCycles(nv.clk, 32)
+    nv.instr.value = InstructionSW(x0, x2, 0).encode()
+    await ClockCycles(nv.clk, 1)
+    assert nv.data_out.value == 279 << 12
+    await ClockCycles(nv.clk, 31)
+    nv.instr.value = InstructionADDI(x1, x0, 2).encode()
+    await ClockCycles(nv.clk, 1)
+    assert nv.data_out.value == (279 << 12) + 3
+    await ClockCycles(nv.clk, 31)
+
+@cocotb.test()
 async def test_slt(nv):
     clock = Clock(nv.clk, 4, units="ns")
     cocotb.start_soon(clock.start())
