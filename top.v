@@ -28,8 +28,13 @@ module nanoV_top (
       .FEEDBACK_PATH("SIMPLE"),
       .PLLOUT_SELECT("GENCLK"),
       .DIVR(4'b0000),
+`ifdef SLOW
       .DIVF(7'b1010100),
       .DIVQ(3'b110),        // Use 3'b101 for ~32MHz, 3'b110 is ~16MHz
+`else
+      .DIVF(7'b0110100),
+      .DIVQ(3'b100),        // ~40MHz
+`endif
       .FILTER_RANGE(3'b001)
      ) SB_PLL40_CORE_inst (
       .RESETB(1'b1),

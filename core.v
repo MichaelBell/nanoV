@@ -65,13 +65,13 @@ module nanoV_core (
     wire slt_req = last_count && (alu_op[2:1] == 2'b01) && instr[4];
     nanoV_alu alu(alu_op, alu_a_in, alu_b_in, cy_in, alu_out, cy_out, lts);
 
+    wire is_zero = is_zero_reg && !alu_out;
+
     always @(posedge clk) begin
         if (last_count) is_zero_reg <= 1;
-        else if (alu_out) is_zero_reg <= 0;
+        else is_zero_reg <= is_zero;
         cy <= cy_out;
     end
-
-    wire is_zero = is_zero_reg && !alu_out;
 
     reg [4:0] shift_amt_reg;
     always @(posedge clk) begin
