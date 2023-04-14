@@ -21,6 +21,7 @@ jobs:
     - run: | 
         yosys --version
         iverilog -V
+        pip3 install riscv-model
         cocotb-config --libpython
         cocotb-config --python-bin
 

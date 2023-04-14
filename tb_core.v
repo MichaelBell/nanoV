@@ -31,7 +31,6 @@ end
             counter <= counter + 1;
         end
 
-    wire branch;
     wire shift_data_out = 1'b0;
     wire pc = 1'b0;
     wire shift_pc;
