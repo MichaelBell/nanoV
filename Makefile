@@ -4,9 +4,13 @@ PROJ      = nanoV
 # Files
 FILES = ledscan.v big_7seg.v top.v core.v alu.v register.v shift.v cpu.v
 
-.PHONY: iceFUN clean burn
+.PHONY: iceFUN stats synth clean burn
 
-iceFUN:
+iceFUN: synth
+	# Convert to bitstream using IcePack
+	icepack $(PROJ).asc $(PROJ).bin
+
+synth:
 	# Synthesize using Yosys
 	yosys -p "synth_ice40 -top nanoV_top -json $(PROJ).json" -DICE40 $(FILES) > yosys.log
 	@grep Warn yosys.log || true
@@ -23,8 +27,15 @@ iceFUN:
 	@grep "Max frequency.*cpu_clk" nextpnr.log | tail -1
 	@echo
 
-	# Convert to bitstream using IcePack
-	icepack $(PROJ).asc $(PROJ).bin
+stats:
+	@grep Warn yosys.log || true
+	@grep Error yosys.log || true
+	@grep Warn nextpnr.log || true
+	@grep Error nextpnr.log || true
+	@grep "   Number of cells" yosys.log
+	@grep "     SB_DFF" yosys.log | awk '{sum+=$$2;}END{printf("     SB_DFF* %25d\n", sum);}'
+	@grep "     SB_LUT" yosys.log
+	@grep "Max frequency.*cpu_clk" nextpnr.log | tail -1
 
 burn:
 	iceFUNprog $(PROJ).bin
