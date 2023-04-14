@@ -32,10 +32,13 @@ stats:
 	@grep Error yosys.log || true
 	@grep Warn nextpnr.log || true
 	@grep Error nextpnr.log || true
-	@grep "   Number of cells" yosys.log
-	@grep "     SB_DFF" yosys.log | awk '{sum+=$$2;}END{printf("     SB_DFF* %25d\n", sum);}'
-	@grep "     SB_LUT" yosys.log
 	@grep "Max frequency.*cpu_clk" nextpnr.log | tail -1
+	@echo "| Item | Count |"
+	@echo "| ---- | ----- |"
+	@grep "   Number of cells" yosys.log | awk '{printf("| Cells | %s |\n", $$4);}'
+	@grep "     SB_DFF" yosys.log | awk '{sum+=$$2;}END{printf("| SB_DFF* | %d |\n", sum);}'
+	@grep "     SB_LUT" yosys.log | awk '{printf("| %s | %s |\n", $$1, $$2);}'
+	@grep "     ICESTORM_LC" nextpnr.log | awk '{gsub(/\//, "", $$3);printf("| ICE40 LCs | %s |\n", $$3);}'
 
 burn:
 	iceFUNprog $(PROJ).bin
