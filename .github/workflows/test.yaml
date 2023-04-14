@@ -1,0 +1,58 @@
+name: test
+# either manually started, or on a schedule
+on: [ push, workflow_dispatch ]
+jobs:
+  test:
+    # ubuntu
+    runs-on: ubuntu-latest
+    steps:
+    # need the repo checked out
+    - name: checkout repo
+      uses: actions/checkout@v3
+      with:
+          submodules: recursive
+
+    # install oss fpga tools
+    - name: install oss-cad-suite
+      uses: YosysHQ/setup-oss-cad-suite@v2
+      with:
+          python-override: true
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+    - run: | 
+        yosys --version
+        iverilog -V
+        cocotb-config --libpython
+        cocotb-config --python-bin
+
+    - name: test ALU
+      run: |
+        make -f test_alu.mk clean
+        make -f test_alu.mk
+        mv results.xml alu_results.xml
+        # make will return success even if the test fails, so check for failure in the results.xml
+        ! grep failure alu_results.xml
+
+    - name: test core
+      run: |
+        make -f test_core.mk clean
+        make -f test_core.mk
+        mv results.xml core_results.xml
+        # make will return success even if the test fails, so check for failure in the results.xml
+        ! grep failure core_results.xml
+
+    - name: test cpu
+      run: |
+        make -f test_cpu.mk clean
+        make -f test_cpu.mk
+        mv results.xml cpu_results.xml
+        # make will return success even if the test fails, so check for failure in the results.xml
+        ! grep failure cpu_results.xml
+
+    - name: test cpu with top
+      run: |
+        TOP=yes make -f test_cpu.mk clean
+        TOP=yes make -f test_cpu.mk
+        mv results.xml top_cpu_results.xml
+        # make will return success even if the test fails, so check for failure in the results.xml
+        ! grep failure top_cpu_results.xml
+
