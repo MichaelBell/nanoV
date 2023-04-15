@@ -7,6 +7,15 @@ from cocotb.triggers import Timer, ClockCycles
 from riscvmodel.insn import *
 from riscvmodel.regnames import x0, x1, x2, x3
 
+async def get_reg_value(nv, reg):
+    nv.instr.value = InstructionSW(x0, reg, 0).encode()
+    nv.cycle.value = 1
+    await ClockCycles(nv.clk, 33)
+    val = nv.data_out.value
+    await ClockCycles(nv.clk, 31)
+    nv.cycle.value = 0
+    return val
+
 @cocotb.test()
 async def test_add(nv):
     clock = Clock(nv.clk, 4, units="ns")
@@ -22,47 +31,21 @@ async def test_add(nv):
     await ClockCycles(nv.clk, 32)
     nv.instr.value = InstructionADDI(x2, x1, 3).encode()
     await ClockCycles(nv.clk, 32)
-    nv.instr.value = InstructionSW(x0, x1, 0).encode()
-    await ClockCycles(nv.clk, 32)
-    nv.instr.value = InstructionSW(x0, x2, 0).encode()
-    await ClockCycles(nv.clk, 1)
-    assert nv.data_out.value == 279
-    await ClockCycles(nv.clk, 31)
+    assert await get_reg_value(nv, x1) == 279
+    assert await get_reg_value(nv, x2) == 282
     nv.instr.value = InstructionADDI(x1, x0, 2).encode()
-    await ClockCycles(nv.clk, 1)
-    assert nv.data_out.value == 282
-    await ClockCycles(nv.clk, 31)
-
-    nv.instr.value = InstructionSW(x0, x1, 0).encode()
     await ClockCycles(nv.clk, 32)
+    assert await get_reg_value(nv, x1) == 2
+
     nv.instr.value = InstructionADD(x2, x1, x1).encode()
-    await ClockCycles(nv.clk, 1)
-    assert nv.data_out.value == 2
-    await ClockCycles(nv.clk, 31)
-    nv.instr.value = InstructionSW(x0, x2, 0).encode()
     await ClockCycles(nv.clk, 32)
+    assert await get_reg_value(nv, x2) == 4
     nv.instr.value = InstructionADD(x2, x2, x1).encode()
-    await ClockCycles(nv.clk, 1)
-    assert nv.data_out.value == 4
-    await ClockCycles(nv.clk, 31)
-    nv.instr.value = InstructionSW(x0, x2, 0).encode()
     await ClockCycles(nv.clk, 32)
+    assert await get_reg_value(nv, x2) == 6
     nv.instr.value = InstructionADDI(x1, x2, 1).encode()
-    await ClockCycles(nv.clk, 1)
-    assert nv.data_out.value == 6
-    await ClockCycles(nv.clk, 31)
-    nv.instr.value = InstructionSW(x0, x1, 0).encode()
     await ClockCycles(nv.clk, 32)
-    nv.instr.value = InstructionADDI(x1, x2, 1).encode()
-    await ClockCycles(nv.clk, 1)
-    assert nv.data_out.value == 7
-
-async def get_reg_value(nv, reg):
-    nv.instr.value = InstructionSW(x0, reg, 0).encode()
-    await ClockCycles(nv.clk, 33)
-    val = nv.data_out.value
-    await ClockCycles(nv.clk, 31)
-    return val
+    assert await get_reg_value(nv, x1) == 7
 
 @cocotb.test()
 async def test_lui(nv):
@@ -79,16 +62,8 @@ async def test_lui(nv):
     await ClockCycles(nv.clk, 32)
     nv.instr.value = InstructionADDI(x2, x1, 3).encode()
     await ClockCycles(nv.clk, 32)
-    nv.instr.value = InstructionSW(x0, x1, 0).encode()
-    await ClockCycles(nv.clk, 32)
-    nv.instr.value = InstructionSW(x0, x2, 0).encode()
-    await ClockCycles(nv.clk, 1)
-    assert nv.data_out.value == 279 << 12
-    await ClockCycles(nv.clk, 31)
-    nv.instr.value = InstructionADDI(x1, x0, 2).encode()
-    await ClockCycles(nv.clk, 1)
-    assert nv.data_out.value == (279 << 12) + 3
-    await ClockCycles(nv.clk, 31)
+    assert await get_reg_value(nv, x1) == 279 << 12
+    assert await get_reg_value(nv, x2) == (279 << 12) + 3
 
 @cocotb.test()
 async def test_slt(nv):
@@ -268,6 +243,7 @@ async def test_random(nv):
             await ClockCycles(nv.clk, 32)
 
         if True:
+            nv.cycle.value = 1
             nv.instr.value = InstructionSW(x0, 0, 0).encode()
             await ClockCycles(nv.clk, 1)
             for i in range(16):
@@ -278,6 +254,7 @@ async def test_random(nv):
                 if debug: print("Reg {} is {}".format(i, nv.data_out.value.signed_integer))
                 assert nv.data_out.value.signed_integer == reg[i]
             await ClockCycles(nv.clk, 31)
+            nv.cycle.value = 0
 
         last_instr = ops[0]
         for i in range(25):
@@ -311,6 +288,7 @@ async def test_random(nv):
             await ClockCycles(nv.clk, 32)
         nv.cycle.value = 0
 
+        nv.cycle.value = 1
         nv.instr.value = InstructionSW(x0, 0, 0).encode()
         await ClockCycles(nv.clk, 1)
         for i in range(16):
@@ -321,3 +299,4 @@ async def test_random(nv):
             if debug: print("Reg x{} = {} should be {}".format(i, int(nv.data_out.value), reg[i]))
             assert nv.data_out.value == reg[i] & 0xFFFFFFFF
         await ClockCycles(nv.clk, 31)
+        nv.cycle.value = 0

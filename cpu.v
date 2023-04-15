@@ -28,6 +28,7 @@ module nanoV_cpu (
     function [2:0] cycles_for_instr(input [31:0] instr);
         if (instr[6:2] == 5'b11000) cycles_for_instr = 4; // Taken branch
         else if (instr[6:5] == 2'b11) cycles_for_instr = 3;  // Jump
+        else if (instr[6] == 0 && instr[4:2] == 0) cycles_for_instr = 5; // Load/store
         else if (instr[6] == 0 && instr[4] == 1 && instr[2] == 0 && instr[13:12] == 2'b01) cycles_for_instr = 2; // Shift
         else cycles_for_instr = 1;
     endfunction
@@ -83,9 +84,21 @@ module nanoV_cpu (
     reg [21:0] pc;
     wire starting_send_pc = counter[4:3] != 0 && counter < 30;
     wire starting_read_cmd = counter[2] && !counter[1];
-    wire starting_data_out = starting_send_pc ? (is_any_jump ? data_out[29] : pc[21]) : starting_read_cmd;
+    wire starting_instr_out = starting_send_pc ? (is_any_jump ? data_out[29] : pc[21]) : starting_read_cmd;
     
     wire [21:0] next_pc = (counter == 31 && next_cycle == instr_cycles && read_instr && !first_instr[0]) ? pc + 4 : pc;
+
+    wire is_write = instr[5];
+    reg start_data_stream;
+    reg starting_data_stream;
+    reg data_xfer;
+    wire starting_send_data_addr = counter < 24;
+    wire starting_write_data_cmd = counter[2:0] == 6;
+    wire starting_read_data_cmd = counter[2] && counter[1];
+    wire starting_data_cmd = is_write ? starting_write_data_cmd : starting_read_data_cmd;
+    wire starting_data_out = starting_send_data_addr ? data_out[23] : starting_data_cmd;
+
+    wire is_data_instr = (instr[6] == 0) && (instr[4:2] == 0);
 
     always @(posedge clk) begin
         if (!rstn) begin
@@ -93,6 +106,9 @@ module nanoV_cpu (
             starting_instr_stream <= 0;
             read_instr <= 0;
             first_instr <= 0;
+            start_data_stream <= 0;
+            starting_data_stream <= 0;
+            data_xfer <= 0;
             spi_select <= 1;
             spi_clk_enable <= 1;
             pc <= 0;
@@ -101,18 +117,49 @@ module nanoV_cpu (
                 read_instr <= 0;
                 start_instr_stream <= 1;                
                 starting_instr_stream <= 0;
+                start_data_stream <= 0;
+                starting_data_stream <= 0;
+                data_xfer <= 0;
                 spi_select <= 1;
             end else begin
-                if (counter == 29) begin
+                if (counter == 0) begin
+                    if (is_data_instr && cycle == 0) begin
+                        read_instr <= 0;
+                        first_instr <= 0;
+                        start_data_stream <= 1;
+                        spi_select <= 1;
+                    end
+                end else if (counter == 23) begin
+                    if (start_data_stream) begin
+                        start_data_stream <= 0;
+                        starting_data_stream <= 1;
+                        spi_select <= 0;
+                    end else if (starting_data_stream) begin
+                        starting_data_stream <= 0;
+                        data_xfer <= 1;
+                    end else if (data_xfer) begin
+                        data_xfer <= 0;
+                        start_instr_stream <= 1;
+                        spi_select <= 1;
+                    end
+                end else if (counter == 31) begin
+                    if (data_xfer && instr[13:12] == 0) begin
+                        data_xfer <= 0;
+                        start_instr_stream <= 1;
+                        spi_select <= 1;
+                    end
+                end else if (counter == 7) begin
+                    if (data_xfer && instr[12]) begin
+                        data_xfer <= 0;
+                        start_instr_stream <= 1;
+                        spi_select <= 1;
+                    end
+                end else if (counter == 29) begin
                     if (start_instr_stream) begin
                         start_instr_stream <= 0;
                         starting_instr_stream <= 1;
                         spi_select <= 0;
-                        read_instr <= 0;
-                        first_instr <= 0;
-                        spi_clk_enable <= 1;
                     end else if (starting_instr_stream) begin
-                        start_instr_stream <= 0;
                         starting_instr_stream <= 0;
                         read_instr <= 1;
                         first_instr <= 2'b11;
@@ -138,8 +185,10 @@ module nanoV_cpu (
         end
     end
 
-    assign shift_data_out = (is_jmp && (cycle != 0)) || (is_branch && cycle[1]);
-    assign spi_out = starting_instr_stream ? starting_data_out : data_out[0];
+    assign shift_data_out = ((is_jmp || is_data_instr) && (cycle != 0)) || (is_branch && cycle[1]);
+    assign spi_out = starting_instr_stream ? starting_instr_out : 
+                     starting_data_stream ?  starting_data_out :
+                                             data_out[0];
 
     always @(posedge clk) begin
         if (!rstn) begin

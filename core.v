@@ -22,9 +22,11 @@ module nanoV_core (
     wire is_jmp = (instr[6:4] == 3'b110 && instr[2] == 1'b1);
     wire is_jal = is_jmp && instr[3];
     wire is_branch = (instr[6:2] == 5'b11000);
+    wire is_mem = (instr[6] == 0 && instr[4:2] == 0);
+    wire is_store = instr[5];
 
     wire [31:0] i_imm = {{20{instr[31]}}, instr[31:20]};
-    //wire [31:0] s_imm = {{20{instr[31]}}, instr[31:25], instr[11:7]};
+    wire [31:0] s_imm = {{20{instr[31]}}, instr[31:25], instr[11:7]};
     wire [31:0] b_imm = {{20{instr[31]}}, instr[7], instr[30:25], instr[11:8], 1'b0};
     wire [31:0] u_imm = {instr[31:12], 12'h000};
     wire [31:0] j_imm = {{12{instr[31]}}, instr[19:12], instr[20], instr[30:21], 1'b0};
@@ -48,14 +50,15 @@ module nanoV_core (
 
     reg cy;
     wire is_branch_cycle1 = is_branch && cycle[0];
-    wire [3:0] alu_op = (is_jmp || is_branch_cycle1 || load_upper) ? 4'b0000 : 
+    wire [3:0] alu_op = (is_jmp || is_branch_cycle1 || load_upper || is_mem) ? 4'b0000 : 
                         is_branch ? {2'b00,instr[14:13]} :
                         {instr[30] && instr[5],instr[14:12]};
-    wire alu_select_rs2 = instr[5] && !is_jmp && !is_branch_cycle1 && !load_upper;
+    wire alu_select_rs2 = instr[5] && !is_jmp && !is_branch_cycle1 && !load_upper && !is_mem;
     wire alu_write = (instr[4:2] == 5'b100);
     wire alu_imm = is_jmp ? ((cycle == 0) ? (is_jal ? j_imm[counter] : i_imm[counter]) : (counter == 2)) : 
                    is_branch ? b_imm[counter] :
                    load_upper ? u_imm[counter] :
+                   (is_mem && is_store) ? s_imm[counter] :
                    i_imm[counter];
     wire alu_a_in = ((is_jmp && (is_jal || cycle[0])) || is_branch_cycle1 || load_upper) ? pc : data_rs1;
     wire alu_b_in = alu_select_rs2 ? data_rs2 : alu_imm;
@@ -91,13 +94,13 @@ module nanoV_core (
                                    (is_branch && last_count && ((instr[14] ? slt : is_equal) ^ instr[12])));
 
     // Various instructions require us to buffer a register
-    wire store_data_in = (is_jmp || is_branch_cycle1) ? alu_out :
+    wire store_data_in = (is_jmp || is_branch_cycle1 || (is_mem && cycle == 0)) ? alu_out :
                          (alu_op[1:0] == 2'b01) ? data_rs1 : data_rs2;
     wire do_store = ((alu_op[1:0] == 2'b01) && (cycle == 0 || shift_stored)) || (instr[6:2] == 5'b01000) || is_jmp || is_branch_cycle1;
     always @(posedge clk) begin
         if (shift_data_out) begin
             stored_data[31:1] <= stored_data[30:0];
-            stored_data[0] <= stored_data[31];
+            stored_data[0] <= is_mem ? data_rs2 : stored_data[31];
         end else if (do_store) begin
             stored_data[31] <= ((alu_op[1:0] == 2'b01) && (cycle == 1 && shift_stored)) ? shift_in : store_data_in;
             stored_data[30:0] <= stored_data[31:1];
