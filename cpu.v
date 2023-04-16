@@ -86,7 +86,7 @@ module nanoV_cpu (
     wire starting_read_cmd = counter[2] && !counter[1];
     wire starting_instr_out = starting_send_pc ? (is_any_jump ? data_out[29] : pc[21]) : starting_read_cmd;
     
-    wire [21:0] next_pc = (counter == 31 && next_cycle == instr_cycles && read_instr && !first_instr[0]) ? pc + 4 : pc;
+    wire [21:0] next_pc = (counter == 31 && ((next_cycle == instr_cycles && read_instr && !first_instr[0]) || (is_data_instr && cycle == 0))) ? pc + 4 : pc;
 
     wire is_write = instr[5];
     reg start_data_stream;
@@ -188,7 +188,7 @@ module nanoV_cpu (
     assign shift_data_out = ((is_jmp || is_data_instr) && (cycle != 0)) || (is_branch && cycle[1]);
     assign spi_out = starting_instr_stream ? starting_instr_out : 
                      starting_data_stream ?  starting_data_out :
-                                             data_out[0];
+                                             data_out[23];
 
     always @(posedge clk) begin
         if (!rstn) begin

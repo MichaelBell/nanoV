@@ -7,7 +7,12 @@ from cocotb.triggers import Timer, ClockCycles
 from riscvmodel.insn import *
 from riscvmodel.regnames import x0, x1, x2, x3
 
+pc = 0
+
 async def do_start(nv):
+    global pc
+    pc = 0
+
     clock = Clock(nv.clk, 4, units="ns")
     cocotb.start_soon(clock.start())
     nv.rstn.value = 0
@@ -19,12 +24,11 @@ async def do_start(nv):
         await ClockCycles(nv.clk, 1)
     assert nv.spi_select.value == 1    
 
-async def expect_read(nv, addr):
-    read_cmd = 3
+async def expect_spi_cmd(nv, addr, cmd):
     for i in range(8):
         await ClockCycles(nv.clk, 1)
         assert nv.spi_select.value == 0
-        assert nv.spi_out.value == (1 if (read_cmd & (0x80 >> i)) != 0 else 0)
+        assert nv.spi_out.value == (1 if (cmd & (0x80 >> i)) != 0 else 0)
 
     # Address after reset is 0.
     for i in range(24):    
@@ -32,7 +36,16 @@ async def expect_read(nv, addr):
         assert nv.spi_select.value == 0
         assert nv.spi_out.value == (1 if (addr & (0x800000 >> i)) != 0 else 0)
 
+async def expect_read(nv, addr):
+    await expect_spi_cmd(nv, addr, 3)
+
+async def expect_write(nv, addr):
+    await expect_spi_cmd(nv, addr, 2)
+
 async def send_instr(nv, instr):
+    global pc
+    pc += 4
+
     # Simulate buffer latency
     await Timer(1, "ns")
 
@@ -40,6 +53,48 @@ async def send_instr(nv, instr):
         nv.spi_data_in.value = (instr >> i) & 1
         await ClockCycles(nv.clk, 1)
         await Timer(1, "ns")
+
+async def get_reg_value(nv, reg, bits=32):
+    addr = random.randint(0, 255) * 4
+    if bits == 32:
+        await send_instr(nv, InstructionSW(x0, reg, addr).encode())
+    elif bits == 16:
+        await send_instr(nv, InstructionSH(x0, reg, addr).encode())
+    else:
+        assert bits == 8
+        await send_instr(nv, InstructionSB(x0, reg, addr).encode())
+
+    await ClockCycles(nv.clk, 2)
+    if nv.is_buffered.value == 1:
+        await ClockCycles(nv.clk, 1)
+    assert nv.spi_select.value == 0
+    await ClockCycles(nv.clk, 1)
+    assert nv.spi_select.value == 1
+    await ClockCycles(nv.clk, 22)
+    assert nv.spi_select.value == 1
+
+    await expect_write(nv, addr)
+
+    data = 0
+    shift = 0
+    for i in range(bits):
+        await ClockCycles(nv.clk, 1)
+        assert nv.spi_select.value == 0
+        data |= nv.spi_out.value.integer << shift
+        shift += 1
+
+    await ClockCycles(nv.clk, 1)
+    assert nv.spi_select.value == 1
+    await ClockCycles(nv.clk, 5 + (32 - bits))
+    assert nv.spi_select.value == 1
+
+    await expect_read(nv, pc)
+
+    if nv.is_buffered.value == 0:
+        await ClockCycles(nv.clk, 1)
+
+    return data
+
 
 @cocotb.test()
 async def test_start(nv):
@@ -50,16 +105,13 @@ async def test_start(nv):
         await ClockCycles(nv.clk, 1)
 
     await send_instr(nv, InstructionADDI(x1, x0, 279).encode())
-    await send_instr(nv, InstructionSW(x0, x1, 0).encode())
+    assert await get_reg_value(nv, x1) == 279
     await send_instr(nv, InstructionAUIPC(x2, 1).encode())
-    await send_instr(nv, InstructionSW(x0, x2, 0).encode())
-    if hasattr(nv, "data"): assert nv.data.value == 279
-    await send_instr(nv, InstructionNOP().encode())
-    await send_instr(nv, InstructionNOP().encode())    
-    if hasattr(nv, "data"): assert nv.data.value == (1 << 12) + 8
+    assert await get_reg_value(nv, x2) == (1 << 12) + 8
 
 @cocotb.test()
 async def test_jmp(nv):
+    global pc
     await do_start(nv)
     await expect_read(nv, 0)
 
@@ -82,7 +134,8 @@ async def test_jmp(nv):
     if nv.is_buffered.value == 0:
         await ClockCycles(nv.clk, 1)
 
-    await send_instr(nv, InstructionSW(x0, x1, 0).encode())  # 324
+    pc = 324
+    assert await get_reg_value(nv, x1) == 8                  # 324
     await send_instr(nv, InstructionJAL(x1, 12000).encode()) # 328 -> 12328
 
     assert nv.spi_select.value == 0
@@ -98,7 +151,8 @@ async def test_jmp(nv):
     if nv.is_buffered.value == 0:
         await ClockCycles(nv.clk, 1)
 
-    await send_instr(nv, InstructionSW(x0, x1, 0).encode()) # 12328
+    pc = 12328
+    assert await get_reg_value(nv, x1) == 332                 # 12328
     await send_instr(nv, InstructionJALR(x3, x1, 0).encode()) # 12332 -> 332
 
     assert nv.spi_select.value == 0
@@ -114,9 +168,10 @@ async def test_jmp(nv):
     if nv.is_buffered.value == 0:
         await ClockCycles(nv.clk, 1)
 
-    await send_instr(nv, InstructionSW(x0, x3, 0).encode())  # 332
+    pc = 332
+    assert await get_reg_value(nv, x3) == 12336                # 332
     await send_instr(nv, InstructionADDI(x2, x0, 80).encode()) # 336
-    await send_instr(nv, InstructionJALR(x3, x2, 0).encode()) # 340 -> 80
+    await send_instr(nv, InstructionJALR(x3, x2, 0).encode())  # 340 -> 80
 
     assert nv.spi_select.value == 0
     await ClockCycles(nv.clk, 3)
@@ -131,8 +186,9 @@ async def test_jmp(nv):
     if nv.is_buffered.value == 0:
         await ClockCycles(nv.clk, 1)
 
-    await send_instr(nv, InstructionSW(x0, x3, 0).encode())  # 80
-    await send_instr(nv, InstructionJAL(x1, -40).encode()) # 84 -> 44
+    pc = 80
+    assert await get_reg_value(nv, x3) == 344                # 80
+    await send_instr(nv, InstructionJAL(x1, -40).encode())   # 84 -> 44
 
     assert nv.spi_select.value == 0
     await ClockCycles(nv.clk, 3)
@@ -147,7 +203,8 @@ async def test_jmp(nv):
     if nv.is_buffered.value == 0:
         await ClockCycles(nv.clk, 1)
 
-    await send_instr(nv, InstructionSW(x0, x1, 0).encode()) # 44
+    pc = 44
+    assert await get_reg_value(nv, x1) == 88                 # 44
     await send_instr(nv, InstructionNOP().encode())
     await send_instr(nv, InstructionNOP().encode())
 
@@ -261,3 +318,20 @@ async def test_branch(nv):
 
     await send_instr(nv, InstructionNOP().encode())
     await send_instr(nv, InstructionNOP().encode())
+
+@cocotb.test()
+async def test_store(nv):
+    await do_start(nv)
+    await expect_read(nv, 0)
+
+    if nv.is_buffered.value == 0:
+        await ClockCycles(nv.clk, 1)
+
+    await send_instr(nv, InstructionADDI(x1, x0, 279).encode())
+    assert await get_reg_value(nv, x1, 8) == 23
+    assert await get_reg_value(nv, x1, 16) == 279
+    assert await get_reg_value(nv, x1, 32) == 279
+    await send_instr(nv, InstructionAUIPC(x2, 1025).encode())
+    assert await get_reg_value(nv, x2, 8) == 16
+    assert await get_reg_value(nv, x2, 16) == (1 << 12) + 16
+    assert await get_reg_value(nv, x2, 32) == (1025 << 12) + 16

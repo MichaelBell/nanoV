@@ -96,7 +96,7 @@ module nanoV_core (
     // Various instructions require us to buffer a register
     wire store_data_in = (is_jmp || is_branch_cycle1 || (is_mem && cycle == 0)) ? alu_out :
                          (alu_op[1:0] == 2'b01) ? data_rs1 : data_rs2;
-    wire do_store = ((alu_op[1:0] == 2'b01) && (cycle == 0 || shift_stored)) || (instr[6:2] == 5'b01000) || is_jmp || is_branch_cycle1;
+    wire do_store = ((alu_op[1:0] == 2'b01) && (cycle == 0 || shift_stored)) || is_mem || is_jmp || is_branch_cycle1;
     always @(posedge clk) begin
         if (shift_data_out) begin
             stored_data[31:1] <= stored_data[30:0];
