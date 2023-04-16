@@ -167,7 +167,7 @@ module nanoV_cpu (
                         first_instr <= {1'b0,first_instr[1]};
                         read_instr <= 1;
                         spi_clk_enable <= 1;
-                    end else begin
+                    end else if (!is_data_instr) begin
                         read_instr <= 0;
                         spi_clk_enable <= 0;
                     end

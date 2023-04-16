@@ -5,7 +5,11 @@ module sim_spi_ram (
     input spi_clk,
     input spi_mosi,
     input spi_select,
-    output reg spi_miso
+    output reg spi_miso,
+
+    input debug_clk,
+    input [23:0] debug_addr,
+    output reg [31:0] debug_data
 );
 
     reg [31:0] cmd;
@@ -15,7 +19,7 @@ module sim_spi_ram (
     reg writing;
     reg error;
 
-    reg [31:0] data [0:2048];
+    reg [31:0] data [0:16384];
 
     parameter INIT_FILE = "";
     initial begin
@@ -36,7 +40,7 @@ module sim_spi_ram (
             start_count <= next_start_count;
 
             if (writing) begin
-                data[addr[15:5]][addr[4:0]] <= spi_mosi;
+                data[addr[18:5]][addr[4:0]] <= spi_mosi;
             end else if (!reading && !writing && !error) begin
                 cmd <= {cmd[30:0],spi_mosi};
             end
@@ -64,5 +68,9 @@ module sim_spi_ram (
         end
     end
 
-    assign spi_miso = reading ? data[addr[15:5]][addr[4:0]] : 0;
+    always @(posedge debug_clk) begin
+        debug_data <= data[debug_addr];
+    end
+
+    assign spi_miso = reading ? data[addr[18:5]][addr[4:0]] : 0;
 endmodule
