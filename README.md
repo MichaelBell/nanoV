@@ -44,5 +44,5 @@ Current instruction timing is as follows (each cycle is 32 clocks):
 | JAL/JALR    | 3      |
 | Branch (not taken) | 1 |
 | Branch (taken) | 4   |
-| Store | 5 |
-| Load (not yet implemented) | 5 |
+| Store       | 5      |
+| Load        | 5      |
