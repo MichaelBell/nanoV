@@ -24,7 +24,7 @@ The processor executes simple instructions in "1 cycle", each cycle is 32 clocks
 
 For jumps and conditional branches, the SPI memory access must be interrupted.  For jumps the SPI is deselected on the second clock of the cycle, for conditional branches it is only deselected on the first clock of the second cycle if the branch is taken.  If the branch is not taken then instructions continue executing uninterrupted.
 
-For loads and stores (not yet implemented) the SPI memory access must be interrupted, the data access completed, and then the instruction access resumed.
+For loads and stores the SPI memory access must be interrupted, the data access completed, and then the instruction access resumed.
 
 The PC is 22 bits internally, allowing programs to sit in the bottom 4MB of the connected RAM.  SPI addresses are 24-bit, so up to 16MB of data can be addressed.
 
@@ -32,7 +32,7 @@ I intend to add GPIO access using addresses above the first 16MB, which should a
 
 ## Instruction timing
 
-Current instruction timing is as follows:
+Current instruction timing is as follows (each cycle is 32 clocks):
 
 | Instruction | Cycles |
 |-------------|--------|
@@ -44,5 +44,5 @@ Current instruction timing is as follows:
 | JAL/JALR    | 3      |
 | Branch (not taken) | 1 |
 | Branch (taken) | 4   |
-| Store (not yet implemented) | 5 |
+| Store | 5 |
 | Load (not yet implemented) | 5 |
