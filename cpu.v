@@ -62,6 +62,10 @@ module nanoV_cpu (
     wire shift_data_out;
     wire take_branch;
     wire read_pc;
+    wire data_in;
+    reg last_data_in;
+    always @(posedge clk)
+        last_data_in <= instr[14] ? 1'b0 : data_in;
 
     nanoV_core core (
         clk,
@@ -71,6 +75,7 @@ module nanoV_cpu (
         cycle,
         counter,
         pc[0],
+        data_in,
         shift_data_out,
         read_pc,
         data_out,
@@ -92,6 +97,7 @@ module nanoV_cpu (
     reg start_data_stream;
     reg starting_data_stream;
     reg data_xfer;
+    reg read_data_ready;
     wire starting_send_data_addr = counter < 24;
     wire starting_write_data_cmd = counter[2:0] == 6;
     wire starting_read_data_cmd = counter[2] && counter[1];
@@ -185,10 +191,16 @@ module nanoV_cpu (
         end
     end
 
+    reg last_data_xfer;
+    always @(posedge clk)
+        last_data_xfer <= data_xfer;
+
     assign shift_data_out = ((is_jmp || is_data_instr) && (cycle != 0)) || (is_branch && cycle[1]);
     assign spi_out = starting_instr_stream ? starting_instr_out : 
                      starting_data_stream ?  starting_data_out :
                                              data_out[23];
+
+    assign data_in = last_data_xfer ? spi_data_in : last_data_in;
 
     always @(posedge clk) begin
         if (!rstn) begin

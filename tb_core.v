@@ -34,6 +34,7 @@ end
     wire shift_data_out = 1'b0;
     wire pc = 1'b0;
     wire shift_pc;
+    wire data_in = 1'b0;
     nanoV_core core (
         clk,
         rstn,
@@ -42,6 +43,7 @@ end
         cycle,
         counter,
         pc,
+        data_in,
         shift_data_out,
         shift_pc,
         data_out,

@@ -12,6 +12,7 @@ module nanoV_core (
     input [2:0] cycle,
     input [4:0] counter,
     input pc,
+    input data_in,
 
     input shift_data_out,
     output shift_pc,
@@ -43,7 +44,7 @@ module nanoV_core (
     wire [3:0] next_rs2 = last_count ? next_instr[23:20] : instr[23:20];
 
     wire load_upper = (instr[6] == 0 && instr[4:2] == 3'b101);
-    wire wr_en = alu_write || (is_jmp && cycle == 1) || load_upper;
+    wire wr_en = alu_write || (is_jmp && cycle == 1) || load_upper || (is_mem && !is_store && (cycle == 2));
     wire wr_next_en = slt_req;
     wire read_through = wr_next_en;
     nanoV_registers registers(clk, rstn, wr_en, wr_next_en, read_through, next_rs1, next_rs2, rs1, rs2, rd, data_rs1, data_rs2, data_rd, data_rd_next);
@@ -89,7 +90,8 @@ module nanoV_core (
     wire shifter_out, shift_stored, shift_in;
     nanoV_shift shifter({instr[30],alu_op[2:0]}, counter, stored_data, shift_amt, shifter_out, shift_stored, shift_in);
 
-    assign data_rd = (alu_op[1:0] == 2'b01) ? shifter_out : alu_out;
+    assign data_rd = (is_mem && !is_store) ? stored_data[6] :
+                     (alu_op[1:0] == 2'b01) ? shifter_out : alu_out;
     assign branch = cycle == 0 && ((is_jmp && counter == 0) || 
                                    (is_branch && last_count && ((instr[14] ? slt : is_equal) ^ instr[12])));
 
@@ -100,7 +102,7 @@ module nanoV_core (
     always @(posedge clk) begin
         if (shift_data_out) begin
             stored_data[31:1] <= stored_data[30:0];
-            stored_data[0] <= is_mem ? data_rs2 : stored_data[31];
+            stored_data[0] <= is_mem ? (is_store ? data_rs2 : data_in) : stored_data[31];
         end else if (do_store) begin
             stored_data[31] <= ((alu_op[1:0] == 2'b01) && (cycle == 1 && shift_stored)) ? shift_in : store_data_in;
             stored_data[30:0] <= stored_data[31:1];
