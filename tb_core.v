@@ -38,8 +38,8 @@ end
     nanoV_core core (
         clk,
         rstn,
-        next_instr[30:0],
-        instr,
+        next_instr[30:2],
+        instr[31:2],
         cycle,
         counter,
         pc,

@@ -7,8 +7,8 @@ module nanoV_core (
     input clk,
     input rstn,
 
-    input [30:0] next_instr,
-    input [31:0] instr,
+    input [30:2] next_instr,
+    input [31:2] instr,
     input [2:0] cycle,
     input [4:0] counter,
     input pc,
@@ -25,6 +25,7 @@ module nanoV_core (
     wire is_branch = (instr[6:2] == 5'b11000);
     wire is_mem = (instr[6] == 0 && instr[4:2] == 0);
     wire is_store = instr[5];
+    wire is_load_upper = (instr[6] == 0 && instr[4:2] == 3'b101);
 
     wire [31:0] i_imm = {{20{instr[31]}}, instr[31:20]};
     wire [31:0] s_imm = {{20{instr[31]}}, instr[31:25], instr[11:7]};
@@ -43,25 +44,24 @@ module nanoV_core (
     wire [3:0] next_rs1 = last_count ? next_instr[18:15] : instr[18:15];
     wire [3:0] next_rs2 = last_count ? next_instr[23:20] : instr[23:20];
 
-    wire load_upper = (instr[6] == 0 && instr[4:2] == 3'b101);
-    wire wr_en = alu_write || (is_jmp && cycle == 1) || load_upper || (is_mem && !is_store && (cycle == 2));
+    wire wr_en = alu_write || (is_jmp && cycle == 1) || is_load_upper || (is_mem && !is_store && (cycle == 2));
     wire wr_next_en = slt_req;
     wire read_through = wr_next_en;
     nanoV_registers registers(clk, rstn, wr_en, wr_next_en, read_through, next_rs1, next_rs2, rs1, rs2, rd, data_rs1, data_rs2, data_rd, data_rd_next);
 
     reg cy;
     wire is_branch_cycle1 = is_branch && cycle[0];
-    wire [3:0] alu_op = (is_jmp || is_branch_cycle1 || load_upper || is_mem) ? 4'b0000 : 
+    wire [3:0] alu_op = (is_jmp || is_branch_cycle1 || is_load_upper || is_mem) ? 4'b0000 : 
                         is_branch ? {2'b00,instr[14:13]} :
                         {instr[30] && instr[5],instr[14:12]};
-    wire alu_select_rs2 = instr[5] && !is_jmp && !is_branch_cycle1 && !load_upper && !is_mem;
+    wire alu_select_rs2 = instr[5] && !is_jmp && !is_branch_cycle1 && !is_load_upper && !is_mem;
     wire alu_write = (instr[4:2] == 5'b100);
     wire alu_imm = is_jmp ? ((cycle == 0) ? (is_jal ? j_imm[counter] : i_imm[counter]) : (counter == 2)) : 
                    is_branch ? b_imm[counter] :
-                   load_upper ? u_imm[counter] :
+                   is_load_upper ? u_imm[counter] :
                    (is_mem && is_store) ? s_imm[counter] :
                    i_imm[counter];
-    wire alu_a_in = ((is_jmp && (is_jal || cycle[0])) || is_branch_cycle1 || load_upper) ? pc : data_rs1;
+    wire alu_a_in = ((is_jmp && (is_jal || cycle[0])) || is_branch_cycle1 || is_load_upper) ? pc : data_rs1;
     wire alu_b_in = alu_select_rs2 ? data_rs2 : alu_imm;
     wire cy_in = (counter == 0) ? (alu_op[1] || alu_op[3]) : cy;
     wire alu_out, cy_out, lts;
@@ -111,6 +111,6 @@ module nanoV_core (
 
     assign data_out = stored_data;
 
-    assign shift_pc = (is_jmp || is_branch_cycle1 || (load_upper && !instr[5])) && counter < 22 && cycle < 2;
+    assign shift_pc = (is_jmp || is_branch_cycle1 || (is_load_upper && !instr[5])) && counter < 22 && cycle < 2;
 
 endmodule

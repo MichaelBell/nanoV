@@ -41,7 +41,7 @@ module nanoV_cpu (
     wire [2:0] next_cycle = cycle + next_counter[5];
     wire [2:0] instr_cycles = (next_cycle == 1 && next_counter[5] && is_branch && !take_branch) ? 1 : instr_cycles_reg;
     reg [31:0] next_instr;
-    reg [31:0] instr;
+    reg [31:2] instr;
     always @(posedge clk)
         if (!rstn) begin
             cycle <= 0;
@@ -50,7 +50,7 @@ module nanoV_cpu (
         end else begin
             if (next_cycle == instr_cycles) begin
                 cycle <= 0;
-                instr <= next_instr;
+                instr <= next_instr[31:2];
                 instr_cycles_reg <= cycles_for_instr(next_instr);
             end else
                 cycle <= next_cycle;
@@ -70,7 +70,7 @@ module nanoV_cpu (
     nanoV_core core (
         clk,
         rstn,
-        next_instr[31:1],
+        next_instr[31:3],
         instr,
         cycle,
         counter,
@@ -202,14 +202,12 @@ module nanoV_cpu (
 
     assign data_in = last_data_xfer ? spi_data_in : last_data_in;
 
+    wire next_instr_new_bit = read_instr ? spi_data_in : next_instr[0];
     always @(posedge clk) begin
         if (!rstn) begin
             next_instr <= 32'b000000000000_00000_000_00000_0010011;
         end else begin
-            if (read_instr) begin
-                next_instr[31] <= spi_data_in;
-                next_instr[30:0] <= next_instr[31:1];
-            end
+            next_instr <= {next_instr_new_bit, next_instr[31:1]};
         end
     end
 
