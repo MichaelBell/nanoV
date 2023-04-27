@@ -40,6 +40,7 @@ module nanoV_cpu (
     reg [2:0] instr_cycles_reg;
     wire [2:0] next_cycle = cycle + next_counter[5];
     wire [2:0] instr_cycles = (next_cycle == 1 && next_counter[5] && is_branch && !take_branch) ? 1 : instr_cycles_reg;
+    wire [2:0] instr_cycles_assume_branch_not_taken = (next_cycle == 1 && next_counter[5] && is_branch) ? 1 : instr_cycles_reg;
     reg [31:0] next_instr;
     reg [31:2] instr;
     always @(posedge clk)
@@ -70,7 +71,7 @@ module nanoV_cpu (
     nanoV_core core (
         clk,
         rstn,
-        next_instr[31:3],
+        (next_cycle == instr_cycles_assume_branch_not_taken) ? next_instr[30:2] : instr[30:2],
         instr,
         cycle,
         counter,

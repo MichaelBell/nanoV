@@ -403,3 +403,24 @@ async def test_load(nv):
     assert await get_reg_value(nv, x4) == (-42) & 0xFF
     await load_reg(nv, x1, 123456789, 8)
     assert await get_reg_value(nv, x1) == 123456789 & 0xFF
+
+@cocotb.test()
+async def test_slt(nv):
+    await do_start(nv)
+    await expect_read(nv, 0)
+
+    if nv.is_buffered.value == 0:
+        await ClockCycles(nv.clk, 1)
+
+    await send_instr(nv, InstructionADDI(x1, x0, 1).encode())
+    await send_instr(nv, InstructionSLTI(x2, x1, 0).encode())
+    await send_instr(nv, InstructionSLTI(x3, x1, 2).encode())
+    assert await get_reg_value(nv, x2) == 0
+    assert await get_reg_value(nv, x3) == 1
+
+    await send_instr(nv, InstructionADDI(x1, x0, -1).encode())
+    await send_instr(nv, InstructionADDI(x4, x0, -2).encode())
+    await send_instr(nv, InstructionSLT(x2, x1, x0).encode())
+    await send_instr(nv, InstructionSLT(x3, x1, x4).encode())
+    assert await get_reg_value(nv, x2) == 1
+    assert await get_reg_value(nv, x3) == 0
