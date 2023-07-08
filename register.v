@@ -10,7 +10,7 @@
     On unpause, the write bit address is not incremented on the first clock.
  */
 
-module nanoV_registers (
+module nanoV_registers #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
     input clk,
     input rstn,
 
@@ -18,12 +18,12 @@ module nanoV_registers (
     input wr_next_en,
     input read_through,
 
-    input [3:0] next_rs1,
-    input [3:0] next_rs2,
+    input [REG_ADDR_BITS-1:0] next_rs1,
+    input [REG_ADDR_BITS-1:0] next_rs2,
 
-    input [3:0] rs1,
-    input [3:0] rs2,
-    input [3:0] rd,
+    input [REG_ADDR_BITS-1:0] rs1,
+    input [REG_ADDR_BITS-1:0] rs2,
+    input [REG_ADDR_BITS-1:0] rd,
 
     output data_rs1,
     output data_rs2,
@@ -96,11 +96,13 @@ module nanoV_registers (
     assign write_data[0] = 1'b0;
 `else
 
-    reg [31:0] registers [1:15];
+    reg [31:0] registers [1:NUM_REGS-1];
+
+    wire read_data_rs1, read_data_rs2;
 
     genvar i;
     generate
-        for (i = 1; i < 16; i = i + 1) begin
+        for (i = 1; i < NUM_REGS; i = i + 1) begin
             always @(posedge clk) begin
                 if (wr_en && rd == i)
                     registers[i][0] <= data_rd;
@@ -115,10 +117,16 @@ module nanoV_registers (
                 registers[i][31:2] <= {registers[i][0], registers[i][31:3]};
             end
         end
+
+        if (NUM_REGS != 2**REG_ADDR_BITS) begin
+            assign read_data_rs1 = (rs1 == 0 || rs1 >= NUM_REGS) ? 1'b0 : registers[rs1][1];
+            assign read_data_rs2 = (rs2 == 0 || rs2 >= NUM_REGS) ? 1'b0 : registers[rs2][1];
+        end else begin
+            assign read_data_rs1 = (rs1 == 0) ? 1'b0 : registers[rs1][1];
+            assign read_data_rs2 = (rs2 == 0) ? 1'b0 : registers[rs2][1];
+        end
     endgenerate 
 
-    wire read_data_rs1 = (rs1 == 0) ? 1'b0 : registers[rs1][1];
-    wire read_data_rs2 = (rs2 == 0) ? 1'b0 : registers[rs2][1];
 
     assign data_rs1 = read_through_rs1 ? last_data_rd_next : read_data_rs1;
     assign data_rs2 = read_through_rs2 ? last_data_rd_next : read_data_rs2;

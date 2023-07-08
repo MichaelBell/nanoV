@@ -3,7 +3,7 @@
    This core module takes instructions and produces output data
  */
 
-module nanoV_core (
+module nanoV_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
     input clk,
     input rstn,
 
@@ -33,21 +33,21 @@ module nanoV_core (
     wire [31:0] j_imm = {{12{instr[31]}}, instr[19:12], instr[20], instr[30:21], 1'b0};
     reg [31:0] stored_data;
 
-    wire [3:0] rs1 = instr[18:15];
-    wire [3:0] rs2 = instr[23:20];
-    wire [3:0] rd = instr[10:7];
+    wire [REG_ADDR_BITS-1:0] rs1 = instr[REG_ADDR_BITS+14:15];
+    wire [REG_ADDR_BITS-1:0] rs2 = instr[REG_ADDR_BITS+19:20];
+    wire [REG_ADDR_BITS-1:0] rd = instr[REG_ADDR_BITS+6:7];
     wire data_rs1, data_rs2, data_rd;
     wire data_rd_next = slt;
 
     wire last_count = (counter == 31);
-    wire [3:0] next_rs1 = last_count ? next_instr[18:15] : instr[18:15];
-    wire [3:0] next_rs2 = last_count ? next_instr[23:20] : instr[23:20];
+    wire [REG_ADDR_BITS-1:0] next_rs1 = last_count ? next_instr[REG_ADDR_BITS+14:15] : instr[REG_ADDR_BITS+14:15];
+    wire [REG_ADDR_BITS-1:0] next_rs2 = last_count ? next_instr[REG_ADDR_BITS+19:20] : instr[REG_ADDR_BITS+19:20];
 
     wire load_upper = (instr[6] == 0 && instr[4:2] == 3'b101);
     wire wr_en = alu_write || (is_jmp && cycle == 1) || load_upper || (is_mem && !is_store && (cycle == 2));
     wire wr_next_en = slt_req;
     wire read_through = wr_next_en;
-    nanoV_registers registers(clk, rstn, wr_en, wr_next_en, read_through, next_rs1, next_rs2, rs1, rs2, rd, data_rs1, data_rs2, data_rd, data_rd_next);
+    nanoV_registers #(.REG_ADDR_BITS(REG_ADDR_BITS), .NUM_REGS(NUM_REGS)) registers(clk, rstn, wr_en, wr_next_en, read_through, next_rs1, next_rs2, rs1, rs2, rd, data_rs1, data_rs2, data_rd, data_rd_next);
 
     reg cy;
     wire is_branch_cycle1 = is_branch && cycle[0];

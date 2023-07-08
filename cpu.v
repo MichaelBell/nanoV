@@ -3,7 +3,7 @@
    This core module takes instructions and produces output data
  */
 
-module nanoV_cpu (
+module nanoV_cpu #(parameter NUM_REGS=16) (
     input clk,
     input rstn,
 
@@ -67,7 +67,7 @@ module nanoV_cpu (
     always @(posedge clk)
         last_data_in <= instr[14] ? 1'b0 : data_in;
 
-    nanoV_core core (
+    nanoV_core #(.REG_ADDR_BITS($clog2(NUM_REGS)), .NUM_REGS(NUM_REGS)) core (
         clk,
         rstn,
         next_instr[31:1],
