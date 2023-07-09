@@ -97,39 +97,35 @@ module nanoV_registers #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
 `else
 
     reg [31:0] registers [1:NUM_REGS-1];
-
-    wire read_data_rs1, read_data_rs2;
+    wire [31:0] reg_access [0:2**REG_ADDR_BITS-1];
 
     genvar i;
     generate
-        for (i = 1; i < NUM_REGS; i = i + 1) begin
-            always @(posedge clk) begin
-                if (wr_en && rd == i)
-                    registers[i][0] <= data_rd;
-                else
-                    registers[i][0] <= registers[i][1];
-                
-                if (wr_next_en && rd == i)
-                    registers[i][1] <= data_rd_next;
-                else
-                    registers[i][1] <= registers[i][2];
-                
-                registers[i][31:2] <= {registers[i][0], registers[i][31:3]};
-            end
-        end
+        for (i = 0; i < 2**REG_ADDR_BITS; i = i + 1) begin
+            if (i == 0 || i >= NUM_REGS) begin
+                assign reg_access[i] = 0;
+            end else begin
+                always @(posedge clk) begin
+                    if (wr_en && rd == i)
+                        registers[i][0] <= data_rd;
+                    else
+                        registers[i][0] <= registers[i][1];
+                    
+                    if (wr_next_en && rd == i)
+                        registers[i][1] <= data_rd_next;
+                    else
+                        registers[i][1] <= registers[i][2];
+                    
+                    registers[i][31:2] <= {registers[i][0], registers[i][31:3]};
+                end
 
-        if (NUM_REGS != 2**REG_ADDR_BITS) begin
-            assign read_data_rs1 = (rs1 == 0 || rs1 >= NUM_REGS) ? 1'b0 : registers[rs1][1];
-            assign read_data_rs2 = (rs2 == 0 || rs2 >= NUM_REGS) ? 1'b0 : registers[rs2][1];
-        end else begin
-            assign read_data_rs1 = (rs1 == 0) ? 1'b0 : registers[rs1][1];
-            assign read_data_rs2 = (rs2 == 0) ? 1'b0 : registers[rs2][1];
+                assign reg_access[i] = registers[i];
+            end
         end
     endgenerate 
 
-
-    assign data_rs1 = read_through_rs1 ? last_data_rd_next : read_data_rs1;
-    assign data_rs2 = read_through_rs2 ? last_data_rd_next : read_data_rs2;
+    assign data_rs1 = read_through_rs1 ? last_data_rd_next : reg_access[rs1][1];
+    assign data_rs2 = read_through_rs2 ? last_data_rd_next : reg_access[rs2][1];
 `endif
 
 endmodule
