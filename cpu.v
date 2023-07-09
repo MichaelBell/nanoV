@@ -13,7 +13,8 @@ module nanoV_cpu #(parameter NUM_REGS=16) (
     output reg spi_clk_enable,
 
     output [31:0] data_out,
-    output reg store_data_out
+    output reg store_data_out,  // When high, data_out is the bit reversed data value from a store instruction.
+    output reg store_addr_out   // When high, data_out is the address of a store instruction.
 );
 
     reg [4:0] counter;
@@ -33,6 +34,7 @@ module nanoV_cpu #(parameter NUM_REGS=16) (
         else cycles_for_instr = 1;
     endfunction
 
+    wire is_store = (instr[6:2] == 5'b01000);
     wire is_jmp = (instr[6:4] == 3'b110 && instr[2] == 1'b1);
     wire is_branch = (instr[6:2] == 5'b11000);
     wire is_any_jump = (instr[6:5] == 2'b11);
@@ -56,8 +58,11 @@ module nanoV_cpu #(parameter NUM_REGS=16) (
                 cycle <= next_cycle;
         end
 
-    always @(posedge clk)
-        store_data_out <= (counter == 31 && instr[6:2] == 5'b01000);
+    wire is_store_cycle = (counter == 31 && is_store);
+    always @(posedge clk) begin
+        store_data_out <= is_store_cycle && cycle == 1;
+        store_addr_out <= is_store_cycle && cycle == 0;
+    end
 
     wire shift_data_out;
     wire take_branch;
@@ -153,6 +158,10 @@ module nanoV_cpu #(parameter NUM_REGS=16) (
                         data_xfer <= 0;
                         start_instr_stream <= 1;
                         spi_select <= 1;
+                    end else if (starting_data_stream && is_store && data_out[31:24] != 0) begin
+                        // Cancel SPI write to high address
+                        spi_select <= 0;
+                        starting_data_stream <= 0;
                     end
                 end else if (counter == 7) begin
                     if (data_xfer && instr[12]) begin

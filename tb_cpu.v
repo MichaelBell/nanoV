@@ -14,6 +14,7 @@ module tb_cpu (
     output spi_clk_enable,
 
     output reg [31:0] data,
+    output reg [31:0] addr,
     output store_data_out
 );
 
@@ -26,6 +27,7 @@ end
 `endif
 
     wire [31:0] data_out;
+    wire store_addr_out;
     nanoV_cpu cpu (
         clk,
         rstn,
@@ -34,12 +36,21 @@ end
         spi_out,
         spi_clk_enable,
         data_out,
-        store_data_out
+        store_data_out,
+        store_addr_out
     );
+
+    wire [31:0] reversed_data_out;
+    genvar i;
+    generate 
+      for (i=0; i<32; i=i+1) assign reversed_data_out[i] = data_out[31-i]; 
+    endgenerate
 
     always @(posedge clk)
       if (store_data_out)
-        data <= data_out;
+        data <= reversed_data_out;
+      else if (store_addr_out)
+        addr <= data_out;
 
     wire is_buffered = 0;
 
