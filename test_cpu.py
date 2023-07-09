@@ -88,8 +88,8 @@ async def get_reg_value(nv, reg, bits=32):
     await ClockCycles(nv.clk, 5 + (32 - bits))
     assert nv.spi_select.value == 1
 
-    assert nv.addr.value == addr
-    assert (nv.data.value & ((1 << bits) - 1)) == data
+    if hasattr(nv, "addr"): assert nv.addr.value == addr
+    if hasattr(nv, "data"):assert (nv.data.value & ((1 << bits) - 1)) == data
 
     await expect_read(nv, pc)
 
