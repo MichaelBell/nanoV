@@ -102,7 +102,6 @@ module nanoV_cpu #(parameter NUM_REGS=16) (
     reg start_data_stream;
     reg starting_data_stream;
     reg data_xfer;
-    reg read_data_ready;
     wire starting_send_data_addr = counter < 24;
     wire starting_write_data_cmd = counter[2:0] == 6;
     wire starting_read_data_cmd = counter[2] && counter[1];
