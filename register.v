@@ -78,14 +78,10 @@ module nanoV_registers #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
     defparam registers.WRITE_MODE=0;
     defparam registers.INIT_0=256'b0;
 
-/*
-    assign data_rs1 = read_through_rs1 ? last_data_rd_next : reg_read_data[rs1];
-    assign data_rs2 = read_through_rs2 ? last_data_rd_next : reg_read_data[rs2];
-*/
     reg data_rs1_reg, data_rs2_reg;
     always @(posedge clk) begin
-        data_rs1_reg <= read_data[next_rs1]; // read_through_rs1_next ? data_rd_next : read_data[next_rs1];
-        data_rs2_reg <= read_data[next_rs2]; // read_through_rs2_next ? data_rd_next : read_data[next_rs2];
+        data_rs1_reg <= read_data[next_rs1];
+        data_rs2_reg <= read_data[next_rs2];
     end
     assign data_rs1 = read_through_rs1 ? last_data_rd_next : data_rs1_reg;
     assign data_rs2 = read_through_rs2 ? last_data_rd_next : data_rs2_reg;
