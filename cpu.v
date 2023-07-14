@@ -48,7 +48,7 @@ module nanoV_cpu #(parameter NUM_REGS=16) (
     always @(posedge clk)
         if (!rstn) begin
             cycle <= 0;
-            instr <= 32'b000000000000_00000_000_00000_1101111;
+            instr <= 30'b000000000000_00000_000_00000_11011;
             instr_cycles_reg <= 3;
         end else begin
             if (next_cycle == instr_cycles) begin
