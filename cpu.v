@@ -159,8 +159,7 @@ module nanoV_cpu #(parameter NUM_REGS=16) (
                         spi_select <= 1;
                     end else if (starting_data_stream && is_store && data_out[31:24] != 0) begin
                         // Cancel SPI write to high address
-                        spi_select <= 0;
-                        starting_data_stream <= 0;
+                        spi_select <= 1;
                     end
                 end else if (counter == 7) begin
                     if (data_xfer && instr[12]) begin
