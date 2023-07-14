@@ -25,17 +25,17 @@ module nanoV_alu (
     wire [1:0] sum = a_for_add + b_for_add + cy_in;
 
     function operate(
-        input [2:0] op,
-        input a,
-        input b,
-        input s
+        input [2:0] op_op,
+        input op_a,
+        input op_b,
+        input op_s
     );
-        case (op)
-            3'b000: operate = s;
+        case (op_op)
+            3'b000: operate = op_s;
             3'b010, 3'b011: operate = 1'b0;
-            3'b111: operate = a & b;
-            3'b110: operate = a | b;
-            3'b100: operate = a ^ b;
+            3'b111: operate = op_a & op_b;
+            3'b110: operate = op_a | op_b;
+            3'b100: operate = op_a ^ op_b;
         endcase
     endfunction
 
