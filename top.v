@@ -47,15 +47,29 @@ module nanoV_top (
     reg buffered_spi_in;
     wire spi_data_out, spi_select_out, spi_clk_enable;
     wire [31:0] raw_data_out;
-    wire latch_data_out;
+    wire latch_data_out, latch_addr_out;
     nanoV_cpu nano(cpu_clk, rstn, buffered_spi_in, spi_select_out, spi_data_out, spi_clk_enable, raw_data_out, latch_data_out, latch_addr_out);
+
+    reg [7:0] addr;
+    always @(posedge cpu_clk) begin
+        if (!rstn)
+            addr <= 0;
+        else if (latch_addr_out && raw_data_out[31:24] == 8'h10)
+            addr <= raw_data_out[7:0];
+    end
+
+    wire [31:0] reversed_data_out;
+    genvar i;
+    generate 
+      for (i=0; i<32; i=i+1) assign reversed_data_out[i] = raw_data_out[31-i]; 
+    endgenerate
 
     reg [31:0] data;
     always @(posedge cpu_clk) begin
         if (!rstn)
             data <= 0;
-        else if (latch_data_out)
-            data <= raw_data_out;
+        else if (latch_data_out && addr == 0)
+            data <= reversed_data_out;
     end
 
     // TODO: Probably need to use SB_IO directly for reading/writing with good timing

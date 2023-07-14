@@ -12,7 +12,7 @@ iceFUN: synth
 
 synth:
 	# Synthesize using Yosys
-	yosys -p "synth_ice40 -top nanoV_top -json $(PROJ).json" -DICE40 $(FILES) > yosys.log
+	yosys -p "synth_ice40 -top nanoV_top -json $(PROJ).json" -DICE40 -DSLOW $(FILES) > yosys.log
 	@grep Warn yosys.log || true
 	@grep Error yosys.log || true
 	@grep "   Number of cells" yosys.log
@@ -44,4 +44,4 @@ burn:
 	iceFUNprog $(PROJ).bin
 
 clean:
-	rm *.asc *.bin *blif
+	rm *.asc *.bin
