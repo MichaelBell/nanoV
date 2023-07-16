@@ -206,7 +206,7 @@ module nanoV_cpu #(parameter NUM_REGS=16) (
     assign shift_data_out = ((is_jmp || is_data_instr) && (cycle != 0)) || (is_branch && cycle[1]);
     assign spi_out = starting_instr_stream ? starting_instr_out : 
                      starting_data_stream ?  starting_data_out :
-                                             data_out[23];
+                     is_store ?              data_out[23] : 0;
 
     assign data_in = last_data_xfer ? spi_data_in : last_data_in;
 

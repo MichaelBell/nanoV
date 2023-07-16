@@ -28,11 +28,10 @@ module nanoV_top (
       .FEEDBACK_PATH("SIMPLE"),
       .PLLOUT_SELECT("GENCLK"),
       .DIVR(4'b0000),
-`ifdef SLOW
-      .DIVF(7'b1010100),
-      .DIVQ(3'b110),        // Use 3'b101 for ~32MHz, 3'b110 is ~16MHz
-`else
       .DIVF(7'b0110100),
+`ifdef SLOW
+      .DIVQ(3'b101),        // ~20MHz
+`else
       .DIVQ(3'b100),        // ~40MHz
 `endif
       .FILTER_RANGE(3'b001)
@@ -53,9 +52,12 @@ module nanoV_top (
     reg [7:0] addr;
     always @(posedge cpu_clk) begin
         if (!rstn)
-            addr <= 0;
-        else if (latch_addr_out && raw_data_out[31:24] == 8'h10)
-            addr <= raw_data_out[7:0];
+            addr <= 8'hff;
+        else if (latch_addr_out)
+            if (raw_data_out[31:24] == 8'h10)
+                addr <= raw_data_out[7:0];
+            else
+                addr <= 8'hff;
     end
 
     wire [31:0] reversed_data_out;
