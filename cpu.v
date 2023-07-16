@@ -26,7 +26,7 @@ module nanoV_cpu #(parameter NUM_REGS=16) (
             counter <= next_counter[4:0];
         end
 
-    function [2:0] cycles_for_instr(input [31:0] instr);
+    function [2:0] cycles_for_instr(input [31:2] instr);
         if (instr[6:2] == 5'b11000) cycles_for_instr = 4; // Taken branch
         else if (instr[6:5] == 2'b11) cycles_for_instr = 3;  // Jump
         else if (instr[6] == 0 && instr[4:2] == 0) cycles_for_instr = 5; // Load/store
@@ -54,7 +54,7 @@ module nanoV_cpu #(parameter NUM_REGS=16) (
             if (next_cycle == instr_cycles) begin
                 cycle <= 0;
                 instr <= next_instr[31:2];
-                instr_cycles_reg <= cycles_for_instr(next_instr);
+                instr_cycles_reg <= cycles_for_instr(next_instr[31:2]);
             end else
                 cycle <= next_cycle;
         end
