@@ -2,7 +2,7 @@
 PROJ      = nanoV
 
 # Files
-FILES = ledscan.v big_7seg.v top.v core.v alu.v register.v shift.v cpu.v
+FILES = ledscan.v big_7seg.v top.v core.v alu.v register.v shift.v cpu.v uart/uart_tx.v
 
 .PHONY: iceFUN stats synth clean burn
 
@@ -24,7 +24,7 @@ synth:
 	nextpnr-ice40 -r --hx8k --json $(PROJ).json --package cb132 --pre-pack timing.py --asc $(PROJ).asc --opt-timing --pcf iceFUN.pcf > nextpnr.log 2>& 1
 	@grep Warn nextpnr.log || true
 	@grep Error nextpnr.log || true
-	@grep "Max frequency.*cpu_clk" nextpnr.log | tail -1
+	@grep "Max frequency.*clk12MHz" nextpnr.log | tail -1
 	@echo
 
 stats:
@@ -32,7 +32,7 @@ stats:
 	@grep Error yosys.log || true
 	@grep Warn nextpnr.log || true
 	@grep Error nextpnr.log || true
-	@grep "Max frequency.*cpu_clk" nextpnr.log | tail -1
+	@grep "Max frequency.*clk12MHz" nextpnr.log | tail -1
 	@echo "| Item | Count |"
 	@echo "| ---- | ----- |"
 	@grep "   Number of cells" yosys.log | awk '{printf("| Cells | %s |\n", $$4);}'

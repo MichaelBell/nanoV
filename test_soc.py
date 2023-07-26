@@ -8,12 +8,12 @@ from cocotb.triggers import Timer, ClockCycles
 # https://riscvasm.lucasteske.dev/# is useful for assembling hex for the file.
 @cocotb.test()
 async def test_start(nv):
-    clock = Clock(nv.clk, 4, units="ns")
+    clock = Clock(nv.clk, 83, units="ns")
     cocotb.start_soon(clock.start())
     nv.rstn.value = 0
     await ClockCycles(nv.clk, 2)
     nv.rstn.value = 1
-    await ClockCycles(nv.clk, 3200)
+    await ClockCycles(nv.clk, 5000)
 
     del clock
     for i in range(nv.start_sig.value.integer >> 2, nv.end_sig.value.integer >> 2):

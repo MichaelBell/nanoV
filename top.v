@@ -11,6 +11,9 @@ module nanoV_top (
     input button2,
     input button3,
 
+    input uart_rxd,
+    output uart_txd,
+
     output led1,
     output led2,
     output led3,
@@ -30,8 +33,8 @@ module nanoV_top (
     reg buffered_spi_in;
     wire spi_data_out, spi_select_out, spi_clk_enable;
     wire [31:0] data_in;
-    wire [31:0] raw_data_out;
-    wire latch_data_out, latch_addr_out;
+    wire [31:0] data_out;
+    wire is_data, is_addr;
     nanoV_cpu nano(
         cpu_clk, 
         rstn, 
@@ -40,36 +43,55 @@ module nanoV_top (
         spi_data_out, 
         spi_clk_enable, 
         data_in,
-        raw_data_out, 
-        latch_data_out, 
-        latch_addr_out);
+        data_out, 
+        is_data, 
+        is_addr);
 
-    reg [7:0] addr;
-    always @(posedge cpu_clk) begin
-        if (!rstn)
-            addr <= 8'hff;
-        else if (latch_addr_out)
-            if (raw_data_out[31:24] == 8'h10)
-                addr <= raw_data_out[7:0];
-            else
-                addr <= 8'hff;
-    end
-
-    assign data_in = (addr == 0) ? {29'h0, button3, button2, button1} : 32'h0;
-
+    reg connect_gpios, connect_uart, connect_uart_status;
+    
     wire [31:0] reversed_data_out;
     genvar i;
     generate 
-      for (i=0; i<32; i=i+1) assign reversed_data_out[i] = raw_data_out[31-i]; 
+      for (i=0; i<32; i=i+1) assign reversed_data_out[i] = data_out[31-i]; 
     endgenerate
 
-    reg [31:0] data;
+    always @(posedge cpu_clk) begin
+        if (!rstn) begin 
+            connect_gpios <= 0;
+            connect_uart <= 0;
+            connect_uart_status <= 0;
+        end
+        else if (is_addr) begin
+            connect_gpios <= (data_out == 32'h10000000);
+            connect_uart <= (data_out == 32'h10001000);
+            connect_uart_status <= (data_out == 32'h10001004);
+        end
+    end
+
+    reg [31:0] led_data;
     always @(posedge cpu_clk) begin
         if (!rstn)
-            data <= 0;
-        else if (latch_data_out && addr == 0)
-            data <= reversed_data_out;
+            led_data <= 0;
+        else if (is_data && connect_gpios)
+            led_data <= reversed_data_out;
     end
+
+    wire uart_tx_busy;
+    assign data_in[31:8] = 0;
+    assign data_in[7:0] = connect_gpios ? {5'b0, button3, button2, button1} : 
+                          connect_uart_status ? {7'b0, uart_tx_busy} : 0;
+
+    wire uart_tx_start = is_data && connect_uart;
+    wire [7:0] uart_tx_data = reversed_data_out[7:0];
+
+    uart_tx #(.CLK_HZ(12_000_000), .BIT_RATE(115_200)) i_uart_tx(
+        .clk(cpu_clk),
+        .resetn(rstn),
+        .uart_txd(uart_txd),
+        .uart_tx_en(uart_tx_start),
+        .uart_tx_data(uart_tx_data),
+        .uart_tx_busy(uart_tx_busy) 
+    );    
 
     // TODO: Probably need to use SB_IO directly for reading/writing with good timing
     always @(negedge cpu_clk) begin
@@ -95,10 +117,10 @@ module nanoV_top (
 
     LedScan scan (
                 .clk12MHz(clk12MHz),
-                .leds1(data[31:24]),
-                .leds2(data[23:16]),
-                .leds3(data[15:8]),
-                .leds4(data[7:0]),
+                .leds1(led_data[31:24]),
+                .leds2(led_data[23:16]),
+                .leds3(led_data[15:8]),
+                .leds4(led_data[7:0]),
                 .leds(leds_out),
                 .lcol(lcol)
         );
