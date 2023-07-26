@@ -7,12 +7,12 @@ module nanoV_top (
     output spi_clk_out,
     output reg spi_mosi,
 
+    input uart_rxd,
+    output uart_txd,
+
     input button1,
     input button2,
     input button3,
-
-    input uart_rxd,
-    output uart_txd,
 
     output led1,
     output led2,
@@ -77,9 +77,12 @@ module nanoV_top (
     end
 
     wire uart_tx_busy;
+    wire uart_rx_valid;
+    wire [7:0] uart_rx_data;
     assign data_in[31:8] = 0;
     assign data_in[7:0] = connect_gpios ? {5'b0, button3, button2, button1} : 
-                          connect_uart_status ? {7'b0, uart_tx_busy} : 0;
+                          connect_uart ? uart_rx_data :
+                          connect_uart_status ? {6'b0, uart_rx_valid, uart_tx_busy} : 0;
 
     wire uart_tx_start = is_data && connect_uart;
     wire [7:0] uart_tx_data = reversed_data_out[7:0];
@@ -91,7 +94,16 @@ module nanoV_top (
         .uart_tx_en(uart_tx_start),
         .uart_tx_data(uart_tx_data),
         .uart_tx_busy(uart_tx_busy) 
-    );    
+    );
+
+    uart_rx #(.CLK_HZ(12_000_000), .BIT_RATE(115_200)) i_uart_rx(
+        .clk(cpu_clk),
+        .resetn(rstn),
+        .uart_rxd(uart_rxd),
+        .uart_rx_read(connect_uart && is_data),
+        .uart_rx_valid(uart_rx_valid),
+        .uart_rx_data(uart_rx_data) 
+    );
 
     // TODO: Probably need to use SB_IO directly for reading/writing with good timing
     always @(negedge cpu_clk) begin

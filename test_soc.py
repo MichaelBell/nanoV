@@ -11,14 +11,31 @@ async def test_start(nv):
     clock = Clock(nv.clk, 83, units="ns")
     cocotb.start_soon(clock.start())
     nv.rstn.value = 0
+    nv.uart_rxd.value = 1
     await ClockCycles(nv.clk, 2)
     nv.rstn.value = 1
-    await ClockCycles(nv.clk, 5000)
+    await Timer(1, "us")
 
-    del clock
-    for i in range(nv.start_sig.value.integer >> 2, nv.end_sig.value.integer >> 2):
-        debug_clock = Clock(nv.debug_clk, 10, units="ns")
-        cocotb.start_soon(debug_clock.start())
-        nv.debug_addr.value = i
-        await ClockCycles(nv.debug_clk, 2)
-        print("{:08x}".format(nv.debug_data.value.integer))
+    nv.uart_rxd.value = 0
+    await Timer(8680, "ns")
+
+    # Send 0x5A
+    await Timer(8680, "ns")
+    nv.uart_rxd.value = 1
+    await Timer(8680, "ns")
+    nv.uart_rxd.value = 0
+    await Timer(8680, "ns")
+    nv.uart_rxd.value = 1
+    await Timer(8680, "ns")
+    await Timer(8680, "ns")
+    nv.uart_rxd.value = 0
+    await Timer(8680, "ns")
+    nv.uart_rxd.value = 1
+    await Timer(8680, "ns")
+    nv.uart_rxd.value = 0
+    await Timer(8680, "ns")
+    nv.uart_rxd.value = 1
+    await Timer(8680, "ns")
+
+    await Timer(10, "us")
+    

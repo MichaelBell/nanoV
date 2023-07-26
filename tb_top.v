@@ -11,7 +11,10 @@ module tb_top (
 
     output spi_select,
     output spi_out,
-    output spi_clk
+    output spi_clk,
+
+    input uart_rxd,
+    output uart_txd
 );
 
 `ifdef COCOTB_SIM
@@ -28,7 +31,9 @@ end
         .spi_miso(spi_data_in),
         .spi_select(spi_select),
         .spi_clk_out(spi_clk),
-        .spi_mosi(spi_out)
+        .spi_mosi(spi_out),
+        .uart_rxd(uart_rxd),
+        .uart_txd(uart_txd)
     );
 
     wire is_buffered = 1;

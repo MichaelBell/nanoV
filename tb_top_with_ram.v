@@ -5,7 +5,10 @@
 
 module tb_top_with_ram (
     input clk,
-    input rstn
+    input rstn,
+
+    input uart_rxd,
+    output uart_txd
 );
 
 `ifdef COCOTB_SIM
@@ -23,7 +26,9 @@ end
         .spi_miso(spi_miso),
         .spi_select(spi_select),
         .spi_clk_out(spi_clk),
-        .spi_mosi(spi_mosi)
+        .spi_mosi(spi_mosi),
+        .uart_rxd(uart_rxd),
+        .uart_txd(uart_txd)
     );
 
     wire debug_clk;
