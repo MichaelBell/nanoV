@@ -26,6 +26,7 @@ initial begin
 end
 `endif
 
+    wire [31:0] ext_data_in;
     wire [31:0] data_out;
     wire store_addr_out;
     nanoV_cpu cpu (
@@ -35,6 +36,7 @@ end
         spi_select,
         spi_out,
         spi_clk_enable,
+        ext_data_in,
         data_out,
         store_data_out,
         store_addr_out

@@ -12,6 +12,7 @@ module nanoV_cpu #(parameter NUM_REGS=16) (
     output spi_out,
     output reg spi_clk_enable,
 
+    input [31:0] ext_data_in,
     output [31:0] data_out,
     output reg store_data_out,  // When high, data_out is the bit reversed data value from a store instruction.
     output reg store_addr_out   // When high, data_out is the address of a store instruction.
@@ -34,10 +35,11 @@ module nanoV_cpu #(parameter NUM_REGS=16) (
         else cycles_for_instr = 1;
     endfunction
 
-    wire is_store = (instr[6:2] == 5'b01000);
-    wire is_jmp = (instr[6:4] == 3'b110 && instr[2] == 1'b1);
-    wire is_branch = (instr[6:2] == 5'b11000);
+    wire is_mem = (instr[6] == 0 && instr[4:2] == 0);
+    wire is_store = is_mem && instr[5];
     wire is_any_jump = (instr[6:5] == 2'b11);
+    wire is_jmp = (is_any_jump && instr[4] == 1'b0 && instr[2] == 1'b1);
+    wire is_branch = (instr[6:2] == 5'b11000);
     reg [2:0] cycle;
     reg [2:0] instr_cycles_reg;
     wire [2:0] next_cycle = cycle + next_counter[5];
@@ -59,16 +61,16 @@ module nanoV_cpu #(parameter NUM_REGS=16) (
                 cycle <= next_cycle;
         end
 
-    wire is_store_cycle = (counter == 31 && is_store);
     always @(posedge clk) begin
-        store_data_out <= is_store_cycle && cycle == 1;
-        store_addr_out <= is_store_cycle && cycle == 0;
+        store_data_out <= (counter == 31 && is_store) && cycle == 1;
+        store_addr_out <= (counter == 31 && is_mem) && cycle == 0;
     end
 
     wire shift_data_out;
     wire take_branch;
     wire read_pc;
     wire data_in;
+    reg use_ext_data_in;
     reg last_data_in;
     always @(posedge clk)
         last_data_in <= instr[14] ? 1'b0 : data_in;
@@ -82,6 +84,8 @@ module nanoV_cpu #(parameter NUM_REGS=16) (
         counter,
         pc[0],
         data_in,
+        ext_data_in[counter],
+        use_ext_data_in,
         shift_data_out,
         read_pc,
         data_out,
@@ -120,6 +124,7 @@ module nanoV_cpu #(parameter NUM_REGS=16) (
             start_data_stream <= 0;
             starting_data_stream <= 0;
             data_xfer <= 0;
+            use_ext_data_in <= 0;
             spi_select <= 1;
             spi_clk_enable <= 1;
             pc <= 0;
@@ -158,9 +163,14 @@ module nanoV_cpu #(parameter NUM_REGS=16) (
                         data_xfer <= 0;
                         start_instr_stream <= 1;
                         spi_select <= 1;
-                    end else if (starting_data_stream && is_store && data_out[31:24] != 0) begin
+                    end else if (starting_data_stream && is_mem && data_out[31:24] != 0) begin
                         // Cancel SPI write to high address
                         spi_select <= 1;
+                        if (!instr[5]) begin
+                            use_ext_data_in <= 1;
+                        end
+                    end else if (use_ext_data_in && cycle == 2) begin
+                        use_ext_data_in <= 0;
                     end
                 end else if (counter == 7) begin
                     if (data_xfer && instr[12]) begin

@@ -98,17 +98,21 @@ async def get_reg_value(nv, reg, bits=32):
 
     return data
 
-async def load_reg(nv, reg, val, bits=32, signed=False):
+async def load_reg(nv, reg, val, bits=32, signed=False, external=False):
     addr = random.randint(0, 255) * 4
+    base_reg = x0
+    if external:
+        await send_instr(nv, InstructionLUI(x4, 0x10000).encode())
+        base_reg = x4
     if bits == 32:
-        await send_instr(nv, InstructionLW(reg, x0, addr).encode())
+        await send_instr(nv, InstructionLW(reg, base_reg, addr).encode())
     elif bits == 16:
-        if signed: await send_instr(nv, InstructionLH(reg, x0, addr).encode())
-        else: await send_instr(nv, InstructionLHU(reg, x0, addr).encode())
+        if signed: await send_instr(nv, InstructionLH(reg, base_reg, addr).encode())
+        else: await send_instr(nv, InstructionLHU(reg, base_reg, addr).encode())
     else:
         assert bits == 8
-        if signed: await send_instr(nv, InstructionLB(reg, x0, addr).encode())
-        else: await send_instr(nv, InstructionLBU(reg, x0, addr).encode())
+        if signed: await send_instr(nv, InstructionLB(reg, base_reg, addr).encode())
+        else: await send_instr(nv, InstructionLBU(reg, base_reg, addr).encode())
 
     await ClockCycles(nv.clk, 2)
     if nv.is_buffered.value == 1:
@@ -116,28 +120,42 @@ async def load_reg(nv, reg, val, bits=32, signed=False):
     assert nv.spi_select.value == 0
     await ClockCycles(nv.clk, 1)
     assert nv.spi_select.value == 1
-    await ClockCycles(nv.clk, 22)
-    assert nv.spi_select.value == 1
 
-    await expect_read(nv, addr)
+    if external:
+        if nv.is_buffered.value == 0:
+            await ClockCycles(nv.clk, 1)
+        await ClockCycles(nv.clk, 30)
+        assert nv.store_addr_out.value == 1
+        assert nv.data_out.value == addr + 0x10000000
 
-    if nv.is_buffered.value == 0:
-        await ClockCycles(nv.clk, 1)
+        nv.ext_data_in.value = val
+        await ClockCycles(nv.clk, 61)
+        if nv.is_buffered.value == 1:
+            await ClockCycles(nv.clk, 1)
+    else:
+        await ClockCycles(nv.clk, 22)
+        assert nv.spi_select.value == 1
 
-    # Simulate buffer latency
-    await Timer(1, "ns")
+        await expect_read(nv, addr)
 
-    for i in range(bits):
-        nv.spi_data_in.value = (val >> i) & 1
-        await ClockCycles(nv.clk, 1)
+        if nv.is_buffered.value == 0:
+            await ClockCycles(nv.clk, 1)
+
+        # Simulate buffer latency
         await Timer(1, "ns")
-    
-    if nv.is_buffered.value == 1:
-        await ClockCycles(nv.clk, 1)
 
-    await ClockCycles(nv.clk, 1)
-    assert nv.spi_select.value == 1
-    await ClockCycles(nv.clk, 4 + (32 - bits))
+        for i in range(bits):
+            nv.spi_data_in.value = (val >> i) & 1
+            await ClockCycles(nv.clk, 1)
+            await Timer(1, "ns")
+        
+        if nv.is_buffered.value == 1:
+            await ClockCycles(nv.clk, 1)
+
+        await ClockCycles(nv.clk, 1)
+        assert nv.spi_select.value == 1
+        await ClockCycles(nv.clk, 4 + (32 - bits))
+
     assert nv.spi_select.value == 1
 
     await expect_read(nv, pc)
@@ -404,8 +422,12 @@ async def test_load(nv):
     assert await get_reg_value(nv, x3) == (-42) & 0xFFFFFFFF
     await load_reg(nv, x4, -42, 8, False)
     assert await get_reg_value(nv, x4) == (-42) & 0xFF
-    await load_reg(nv, x1, 123456789, 8)
+    await load_reg(nv, x1, 123456789, 8, False)
     assert await get_reg_value(nv, x1) == 123456789 & 0xFF
+
+    if nv.is_buffered.value == 0:
+        await load_reg(nv, x1, 123456789, 32, False, True)
+        assert await get_reg_value(nv, x1) == 123456789
 
 @cocotb.test()
 async def test_slt(nv):

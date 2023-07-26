@@ -13,6 +13,8 @@ module nanoV_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
     input [4:0] counter,
     input pc,
     input data_in,
+    input ext_data_in,
+    input use_ext_data_in,
 
     input shift_data_out,
     output shift_pc,
@@ -90,7 +92,7 @@ module nanoV_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
     wire shifter_out, shift_stored, shift_in;
     nanoV_shift shifter({instr[30],alu_op[2:0]}, counter, stored_data, shift_amt, shifter_out, shift_stored, shift_in);
 
-    assign data_rd = (is_mem && !is_store) ? stored_data[6] :
+    assign data_rd = (is_mem && !is_store) ? (use_ext_data_in ? ext_data_in : stored_data[6]) :
                      (alu_op[1:0] == 2'b01) ? shifter_out : alu_out;
     assign branch = cycle == 0 && ((is_jmp && counter == 0) || 
                                    (is_branch && last_count && ((instr[14] ? slt : is_equal) ^ instr[12])));

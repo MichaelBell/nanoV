@@ -7,6 +7,10 @@ module nanoV_top (
     output spi_clk_out,
     output reg spi_mosi,
 
+    input button1,
+    input button2,
+    input button3,
+
     output led1,
     output led2,
     output led3,
@@ -21,33 +25,24 @@ module nanoV_top (
     output lcol4);
 
     wire cpu_clk;
-`ifdef SIM
     assign cpu_clk = clk12MHz;
-`else
-    SB_PLL40_CORE #(
-      .FEEDBACK_PATH("SIMPLE"),
-      .PLLOUT_SELECT("GENCLK"),
-      .DIVR(4'b0000),
-      .DIVF(7'b0110100),
-`ifdef SLOW
-      .DIVQ(3'b101),        // ~20MHz
-`else
-      .DIVQ(3'b100),        // ~40MHz
-`endif
-      .FILTER_RANGE(3'b001)
-     ) SB_PLL40_CORE_inst (
-      .RESETB(1'b1),
-      .BYPASS(1'b0),
-      .PLLOUTCORE(cpu_clk),
-      .REFERENCECLK(clk12MHz)
-    );
-`endif
 
     reg buffered_spi_in;
     wire spi_data_out, spi_select_out, spi_clk_enable;
+    wire [31:0] data_in;
     wire [31:0] raw_data_out;
     wire latch_data_out, latch_addr_out;
-    nanoV_cpu nano(cpu_clk, rstn, buffered_spi_in, spi_select_out, spi_data_out, spi_clk_enable, raw_data_out, latch_data_out, latch_addr_out);
+    nanoV_cpu nano(
+        cpu_clk, 
+        rstn, 
+        buffered_spi_in, 
+        spi_select_out, 
+        spi_data_out, 
+        spi_clk_enable, 
+        data_in,
+        raw_data_out, 
+        latch_data_out, 
+        latch_addr_out);
 
     reg [7:0] addr;
     always @(posedge cpu_clk) begin
@@ -59,6 +54,8 @@ module nanoV_top (
             else
                 addr <= 8'hff;
     end
+
+    assign data_in = (addr == 0) ? {29'h0, button3, button2, button1} : 32'h0;
 
     wire [31:0] reversed_data_out;
     genvar i;

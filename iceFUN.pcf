@@ -12,9 +12,9 @@ set_io --warn-no-port lcol1		A12
 set_io --warn-no-port lcol2	 	D10
 set_io --warn-no-port lcol3 	A6
 set_io --warn-no-port lcol4 	C5
-#set_io --warn-no-port button1   C11
-#set_io --warn-no-port button2   C6
-#set_io --warn-no-port button3   A11
+set_io --warn-no-port button1   C11
+set_io --warn-no-port button2   C6
+set_io --warn-no-port button3   A11
 #set_io --warn-no-port button4   A5
 
 set_io --warn-no-port spi_miso    N1

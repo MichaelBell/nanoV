@@ -2,6 +2,8 @@
 
     Targetting RV32E, so 15 registers + x0 is always zero.
 
+    Idea for reducing register count for Tiny Tapeout: Omit r3-r7 as they seem relatively rarely used.
+
     1-bit access and the registers are normally shifted every clock.
 
     Normally read bit address is one ahead of write bit address, and both increment every clock.
