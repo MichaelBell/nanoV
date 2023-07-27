@@ -49,7 +49,8 @@ module nanoV_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
     wire wr_en = alu_write || (is_jmp && cycle == 1) || is_load_upper || (is_mem && !is_store && (cycle == 2));
     wire wr_next_en = slt_req;
     wire read_through = wr_next_en;
-    nanoV_registers #(.REG_ADDR_BITS(REG_ADDR_BITS), .NUM_REGS(NUM_REGS)) i_registers(clk, rstn, wr_en, wr_next_en, read_through, next_rs1, next_rs2, rs1, rs2, rd, data_rs1, data_rs2, data_rd, data_rd_next);
+    nanoV_registers #(.REG_ADDR_BITS(REG_ADDR_BITS), .NUM_REGS(NUM_REGS)) 
+        i_registers(clk, rstn, wr_en, wr_next_en, read_through, counter, next_rs1, next_rs2, rs1, rs2, rd, data_rs1, data_rs2, data_rd, data_rd_next);
 
     reg cy;
     wire is_branch_cycle1 = is_branch && cycle[0];

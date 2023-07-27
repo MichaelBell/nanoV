@@ -9,6 +9,7 @@ module nanoV_top (
 
     input uart_rxd,
     output uart_txd,
+    output uart_rts,
 
     input button1,
     input button2,
@@ -63,8 +64,8 @@ module nanoV_top (
         end
         else if (is_addr) begin
             connect_gpios <= (data_out == 32'h10000000);
-            connect_uart <= (data_out == 32'h10001000);
-            connect_uart_status <= (data_out == 32'h10001004);
+            connect_uart <= (data_out == 32'h10000010);
+            connect_uart_status <= (data_out == 32'h10000014);
         end
     end
 
@@ -87,7 +88,7 @@ module nanoV_top (
     wire uart_tx_start = is_data && connect_uart;
     wire [7:0] uart_tx_data = reversed_data_out[7:0];
 
-    uart_tx #(.CLK_HZ(12_000_000), .BIT_RATE(115_200)) i_uart_tx(
+    uart_tx #(.CLK_HZ(12_000_000), .BIT_RATE(28_800)) i_uart_tx(
         .clk(cpu_clk),
         .resetn(rstn),
         .uart_txd(uart_txd),
@@ -96,10 +97,11 @@ module nanoV_top (
         .uart_tx_busy(uart_tx_busy) 
     );
 
-    uart_rx #(.CLK_HZ(12_000_000), .BIT_RATE(115_200)) i_uart_rx(
+    uart_rx #(.CLK_HZ(12_000_000), .BIT_RATE(28_800)) i_uart_rx(
         .clk(cpu_clk),
         .resetn(rstn),
         .uart_rxd(uart_rxd),
+        .uart_rts(uart_rts),
         .uart_rx_read(connect_uart && is_data),
         .uart_rx_valid(uart_rx_valid),
         .uart_rx_data(uart_rx_data) 

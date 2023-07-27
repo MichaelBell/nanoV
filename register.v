@@ -20,6 +20,8 @@ module nanoV_registers #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
     input wr_next_en,
     input read_through,
 
+    input [4:0] counter,
+
     input [REG_ADDR_BITS-1:0] next_rs1,
     input [REG_ADDR_BITS-1:0] next_rs2,
 
@@ -35,7 +37,7 @@ module nanoV_registers #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
 
     reg last_data_rd_next;
     reg read_through_rs1, read_through_rs2;
-    wire may_read_through = read_through && rd != 0;
+    wire may_read_through = read_through && rd != 0 && rd != 3 && rd != 4;
     wire read_through_rs1_next = may_read_through && (next_rs1 == rd);
     wire read_through_rs2_next = may_read_through && (next_rs2 == rd);
     always @(posedge clk) begin
@@ -44,7 +46,7 @@ module nanoV_registers #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
         read_through_rs2 <= read_through_rs2_next;
     end
 
-`ifdef ICE40
+`ifdef ICE40_OFF
     reg [4:0] read_addr;
     reg [4:0] write_addr;
 
@@ -113,6 +115,10 @@ module nanoV_registers #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
         for (i = 0; i < 2**REG_ADDR_BITS; i = i + 1) begin
             if (i == 0 || i >= NUM_REGS) begin
                 assign reg_access[i] = 0;
+            end else if (i == 3) begin // gp is hardcoded to 0x00001000
+                assign reg_access[i] = {30'b0, (counter == 12), 1'b0};
+            end else if (i == 4) begin // tp is hardcoded to 0x10000000
+                assign reg_access[i] = {30'b0, (counter == 28), 1'b0};
             end else begin
                 always @(posedge clk) begin
                     if (wr_en && rd == i)

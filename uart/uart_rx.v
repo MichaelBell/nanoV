@@ -13,6 +13,7 @@ module uart_rx(
 input  wire       clk          , // Top level system clock input.
 input  wire       resetn       , // Asynchronous active low reset.
 input  wire       uart_rxd     , // UART Recieve pin.
+output reg        uart_rts     , // UART Request to send pin.
 input  wire       uart_rx_read , // Available byte has been read and can be cleared.
 output wire       uart_rx_valid, // Valid data recieved and available.
 output wire [PAYLOAD_BITS-1:0] uart_rx_data   // The recieved data.
@@ -162,6 +163,14 @@ always @(posedge clk) begin : p_fsm_state
     end
 end
 
+// Sets RTS
+always @(posedge clk) begin : p_rts
+    if (!resetn) begin
+        uart_rts <= 1'b1;
+    end else begin
+        uart_rts <= fsm_state > FSM_START;  // RTS is active low, 0 when IDLE or START.
+    end
+end
 
 //
 // Responsible for updating the internal value of the rxd_reg.

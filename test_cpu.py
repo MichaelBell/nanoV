@@ -5,7 +5,7 @@ from cocotb.clock import Clock
 from cocotb.triggers import Timer, ClockCycles
 
 from riscvmodel.insn import *
-from riscvmodel.regnames import x0, x1, x2, x3, x4
+from riscvmodel.regnames import x0, x1, x2, x5, x6
 
 pc = 0
 
@@ -102,8 +102,8 @@ async def load_reg(nv, reg, val, bits=32, signed=False, external=False):
     addr = random.randint(0, 255) * 4
     base_reg = x0
     if external:
-        await send_instr(nv, InstructionLUI(x4, 0x10000).encode())
-        base_reg = x4
+        await send_instr(nv, InstructionLUI(x6, 0x10000).encode())
+        base_reg = x6
     if bits == 32:
         await send_instr(nv, InstructionLW(reg, base_reg, addr).encode())
     elif bits == 16:
@@ -221,7 +221,7 @@ async def test_jmp(nv):
 
     pc = 12328
     assert await get_reg_value(nv, x1) == 332                 # 12328
-    await send_instr(nv, InstructionJALR(x3, x1, 0).encode()) # 12332 -> 332
+    await send_instr(nv, InstructionJALR(x5, x1, 0).encode()) # 12332 -> 332
 
     assert nv.spi_select.value == 0
     await ClockCycles(nv.clk, 3)
@@ -237,9 +237,9 @@ async def test_jmp(nv):
         await ClockCycles(nv.clk, 1)
 
     pc = 332
-    assert await get_reg_value(nv, x3) == 12336                # 332
+    assert await get_reg_value(nv, x5) == 12336                # 332
     await send_instr(nv, InstructionADDI(x2, x0, 80).encode()) # 336
-    await send_instr(nv, InstructionJALR(x3, x2, 0).encode())  # 340 -> 80
+    await send_instr(nv, InstructionJALR(x5, x2, 0).encode())  # 340 -> 80
 
     assert nv.spi_select.value == 0
     await ClockCycles(nv.clk, 3)
@@ -255,7 +255,7 @@ async def test_jmp(nv):
         await ClockCycles(nv.clk, 1)
 
     pc = 80
-    assert await get_reg_value(nv, x3) == 344                # 80
+    assert await get_reg_value(nv, x5) == 344                # 80
     await send_instr(nv, InstructionJAL(x1, -40).encode())   # 84 -> 44
 
     assert nv.spi_select.value == 0
@@ -418,10 +418,10 @@ async def test_load(nv):
     assert await get_reg_value(nv, x1) == (-42) & 0xFFFFFFFF
     await load_reg(nv, x2, -42, 16, False)
     assert await get_reg_value(nv, x2) == (-42) & 0xFFFF
-    await load_reg(nv, x3, -42, 8, True)
-    assert await get_reg_value(nv, x3) == (-42) & 0xFFFFFFFF
-    await load_reg(nv, x4, -42, 8, False)
-    assert await get_reg_value(nv, x4) == (-42) & 0xFF
+    await load_reg(nv, x5, -42, 8, True)
+    assert await get_reg_value(nv, x5) == (-42) & 0xFFFFFFFF
+    await load_reg(nv, x6, -42, 8, False)
+    assert await get_reg_value(nv, x6) == (-42) & 0xFF
     await load_reg(nv, x1, 123456789, 8, False)
     assert await get_reg_value(nv, x1) == 123456789 & 0xFF
 
@@ -439,13 +439,13 @@ async def test_slt(nv):
 
     await send_instr(nv, InstructionADDI(x1, x0, 1).encode())
     await send_instr(nv, InstructionSLTI(x2, x1, 0).encode())
-    await send_instr(nv, InstructionSLTI(x3, x1, 2).encode())
+    await send_instr(nv, InstructionSLTI(x5, x1, 2).encode())
     assert await get_reg_value(nv, x2) == 0
-    assert await get_reg_value(nv, x3) == 1
+    assert await get_reg_value(nv, x5) == 1
 
     await send_instr(nv, InstructionADDI(x1, x0, -1).encode())
-    await send_instr(nv, InstructionADDI(x4, x0, -2).encode())
+    await send_instr(nv, InstructionADDI(x6, x0, -2).encode())
     await send_instr(nv, InstructionSLT(x2, x1, x0).encode())
-    await send_instr(nv, InstructionSLT(x3, x1, x4).encode())
+    await send_instr(nv, InstructionSLT(x5, x1, x6).encode())
     assert await get_reg_value(nv, x2) == 1
-    assert await get_reg_value(nv, x3) == 0
+    assert await get_reg_value(nv, x5) == 0

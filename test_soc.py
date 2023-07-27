@@ -16,26 +16,27 @@ async def test_start(nv):
     nv.rstn.value = 1
     await Timer(1, "us")
 
+    bit_time = 1000000000 // 28800
     nv.uart_rxd.value = 0
-    await Timer(8680, "ns")
+    await Timer(bit_time, "ns")
 
     # Send 0x5A
-    await Timer(8680, "ns")
+    await Timer(bit_time, "ns")
     nv.uart_rxd.value = 1
-    await Timer(8680, "ns")
+    await Timer(bit_time, "ns")
     nv.uart_rxd.value = 0
-    await Timer(8680, "ns")
+    await Timer(bit_time, "ns")
     nv.uart_rxd.value = 1
-    await Timer(8680, "ns")
-    await Timer(8680, "ns")
+    await Timer(bit_time, "ns")
+    await Timer(bit_time, "ns")
     nv.uart_rxd.value = 0
-    await Timer(8680, "ns")
+    await Timer(bit_time, "ns")
     nv.uart_rxd.value = 1
-    await Timer(8680, "ns")
+    await Timer(bit_time, "ns")
     nv.uart_rxd.value = 0
-    await Timer(8680, "ns")
+    await Timer(bit_time, "ns")
     nv.uart_rxd.value = 1
-    await Timer(8680, "ns")
+    await Timer(bit_time, "ns")
 
     await Timer(10, "us")
     

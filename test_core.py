@@ -5,7 +5,7 @@ from cocotb.clock import Clock
 from cocotb.triggers import Timer, ClockCycles
 
 from riscvmodel.insn import *
-from riscvmodel.regnames import x0, x1, x2, x3
+from riscvmodel.regnames import x0, x1, x2, x5
 
 async def send_instr(nv, instr):
     nv.next_instr.value = instr
@@ -128,39 +128,39 @@ async def test_shift(nv):
     await TwoCycleInstr(nv, InstructionSLLI(x2, x1, 31).encode())
     assert await get_reg_value(nv, x2) == 0x80000000
 
-    await send_instr(nv, InstructionADDI(x3, x0, 1).encode())
-    await TwoCycleInstr(nv, InstructionSLL(x2, x1, x3).encode())
+    await send_instr(nv, InstructionADDI(x5, x0, 1).encode())
+    await TwoCycleInstr(nv, InstructionSLL(x2, x1, x5).encode())
     assert await get_reg_value(nv, x2) == 2
-    await send_instr(nv, InstructionADDI(x3, x3, 15).encode())
-    await TwoCycleInstr(nv, InstructionSLL(x3, x1, x3).encode())
-    assert await get_reg_value(nv, x3) == 0x10000
+    await send_instr(nv, InstructionADDI(x5, x5, 15).encode())
+    await TwoCycleInstr(nv, InstructionSLL(x5, x1, x5).encode())
+    assert await get_reg_value(nv, x5) == 0x10000
 
-    await TwoCycleInstr(nv, InstructionSRLI(x2, x3, 1).encode())
+    await TwoCycleInstr(nv, InstructionSRLI(x2, x5, 1).encode())
     assert await get_reg_value(nv, x2) == 0x8000
-    await TwoCycleInstr(nv, InstructionSRLI(x2, x3, 4).encode())
+    await TwoCycleInstr(nv, InstructionSRLI(x2, x5, 4).encode())
     assert await get_reg_value(nv, x2) == 0x1000
 
-    await TwoCycleInstr(nv, InstructionSRL(x2, x3, x1).encode())
+    await TwoCycleInstr(nv, InstructionSRL(x2, x5, x1).encode())
     assert await get_reg_value(nv, x2) == 0x8000
     await send_instr(nv, InstructionADDI(x1, x0, 15).encode())
-    await TwoCycleInstr(nv, InstructionSRL(x2, x3, x1).encode())
+    await TwoCycleInstr(nv, InstructionSRL(x2, x5, x1).encode())
     assert await get_reg_value(nv, x2) == 2
     await send_instr(nv, InstructionADDI(x1, x0, 17).encode())
-    await TwoCycleInstr(nv, InstructionSRL(x2, x3, x1).encode())
+    await TwoCycleInstr(nv, InstructionSRL(x2, x5, x1).encode())
     assert await get_reg_value(nv, x2) == 0
 
-    await TwoCycleInstr(nv, InstructionSRAI(x2, x3, 15).encode())
+    await TwoCycleInstr(nv, InstructionSRAI(x2, x5, 15).encode())
     assert await get_reg_value(nv, x2) == 2
 
-    await TwoCycleInstr(nv, InstructionSLLI(x3, x3, 15).encode())
+    await TwoCycleInstr(nv, InstructionSLLI(x5, x5, 15).encode())
 
-    await TwoCycleInstr(nv, InstructionSRAI(x2, x3, 1).encode())
+    await TwoCycleInstr(nv, InstructionSRAI(x2, x5, 1).encode())
     assert await get_reg_value(nv, x2) == 0xC0000000
     await send_instr(nv, InstructionADDI(x1, x0, 15).encode())
-    await TwoCycleInstr(nv, InstructionSRA(x2, x3, x1).encode())
+    await TwoCycleInstr(nv, InstructionSRA(x2, x5, x1).encode())
     assert await get_reg_value(nv, x2) == 0xFFFF0000
     await send_instr(nv, InstructionADDI(x1, x0, 17).encode())
-    await TwoCycleInstr(nv, InstructionSRA(x2, x3, x1).encode())
+    await TwoCycleInstr(nv, InstructionSRA(x2, x5, x1).encode())
     assert await get_reg_value(nv, x2) == 0xFFFFC000
 
 
@@ -176,7 +176,7 @@ class Op:
         self.cycles = cycles
     
     def execute_fn(self, rd, rs1, arg2):
-        if rd != 0:
+        if rd != 0 and rd != 3 and rd != 4:
             reg[rd] = self.fn(rs1, arg2)
             while reg[rd] < -0x80000000: reg[rd] += 0x100000000
             while reg[rd] > 0x7FFFFFFF:  reg[rd] -= 0x100000000
@@ -226,9 +226,12 @@ async def test_random(nv):
         nv._log.info("Running test with seed {}".format(seed + test))
         nv.next_instr.value = InstructionNOP().encode()
         for i in range(1, 16):
-            reg[i] = random.randint(-2048, 2047)
-            if debug: print("Set reg {} to {}".format(i, reg[i]))
-            await send_instr(nv, InstructionADDI(i, x0, reg[i]).encode())
+            if i == 3: reg[i] = 0x1000
+            elif i == 4: reg[i] = 0x10000000
+            else:
+                reg[i] = random.randint(-2048, 2047)
+                if debug: print("Set reg {} to {}".format(i, reg[i]))
+                await send_instr(nv, InstructionADDI(i, x0, reg[i]).encode())
 
         if True:
             for i in range(16):
