@@ -89,7 +89,7 @@ module nanoV_top (
     wire uart_tx_start = is_data && connect_uart;
     wire [7:0] uart_tx_data = reversed_data_out[7:0];
 
-    uart_tx #(.CLK_HZ(12_000_000), .BIT_RATE(28_800)) i_uart_tx(
+    uart_tx #(.CLK_HZ(12_000_000), .BIT_RATE(93_750)) i_uart_tx(
         .clk(cpu_clk),
         .resetn(rstn),
         .uart_txd(uart_txd),
@@ -98,7 +98,7 @@ module nanoV_top (
         .uart_tx_busy(uart_tx_busy) 
     );
 
-    uart_rx #(.CLK_HZ(12_000_000), .BIT_RATE(28_800)) i_uart_rx(
+    uart_rx #(.CLK_HZ(12_000_000), .BIT_RATE(93_750)) i_uart_rx(
         .clk(cpu_clk),
         .resetn(rstn),
         .uart_rxd(uart_rxd),
