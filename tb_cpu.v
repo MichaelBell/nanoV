@@ -29,6 +29,7 @@ end
     wire [31:0] ext_data_in;
     wire [31:0] data_out;
     wire store_addr_out;
+    wire data_in_read;
     nanoV_cpu cpu (
         clk,
         rstn,
@@ -39,7 +40,8 @@ end
         ext_data_in,
         data_out,
         store_data_out,
-        store_addr_out
+        store_addr_out,
+        data_in_read
     );
 
     wire [31:0] reversed_data_out;

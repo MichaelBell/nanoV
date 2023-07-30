@@ -35,7 +35,7 @@ module nanoV_top (
     wire spi_data_out, spi_select_out, spi_clk_enable;
     wire [31:0] data_in;
     wire [31:0] data_out;
-    wire is_data, is_addr;
+    wire is_data, is_addr, is_data_in;
     nanoV_cpu nano(
         cpu_clk, 
         rstn, 
@@ -46,7 +46,8 @@ module nanoV_top (
         data_in,
         data_out, 
         is_data, 
-        is_addr);
+        is_addr,
+        is_data_in);
 
     reg connect_gpios, connect_uart, connect_uart_status;
     
@@ -102,7 +103,7 @@ module nanoV_top (
         .resetn(rstn),
         .uart_rxd(uart_rxd),
         .uart_rts(uart_rts),
-        .uart_rx_read(connect_uart && is_data),
+        .uart_rx_read(connect_uart && is_data_in),
         .uart_rx_valid(uart_rx_valid),
         .uart_rx_data(uart_rx_data) 
     );

@@ -14,8 +14,9 @@ module nanoV_cpu #(parameter NUM_REGS=16) (
 
     input [31:0] ext_data_in,
     output [31:0] data_out,
-    output reg store_data_out,  // When high, data_out is the bit reversed data value from a store instruction.
-    output reg store_addr_out   // When high, data_out is the address of a store instruction.
+    output store_data_out,  // When high, data_out is the bit reversed data value from a store instruction.
+    output store_addr_out,  // When high, data_out is the address of a store instruction.
+    output data_in_read     // When high, ext_data_in has been read by a load.
 );
 
     reg [4:0] counter;
@@ -37,6 +38,7 @@ module nanoV_cpu #(parameter NUM_REGS=16) (
 
     wire is_mem = (instr[6] == 0 && instr[4:2] == 0);
     wire is_store = is_mem && instr[5];
+    wire is_load = is_mem && !instr[5];
     wire is_any_jump = (instr[6:5] == 2'b11);
     wire is_jmp = (is_any_jump && instr[4] == 1'b0 && instr[2] == 1'b1);
     wire is_branch = (instr[6:2] == 5'b11000);
@@ -61,10 +63,9 @@ module nanoV_cpu #(parameter NUM_REGS=16) (
                 cycle <= next_cycle;
         end
 
-    always @(posedge clk) begin
-        store_data_out <= (counter == 31 && is_store) && cycle == 1;
-        store_addr_out <= (counter == 31 && is_mem) && cycle == 0;
-    end
+    assign store_data_out = (counter == 0 && is_store && cycle == 2);
+    assign data_in_read = (counter == 0 && is_load && cycle == 3);
+    assign store_addr_out = (counter == 0 && is_mem && cycle == 1);
 
     wire shift_data_out;
     wire take_branch;
