@@ -47,7 +47,7 @@ module nanoV_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
     wire [REG_ADDR_BITS-1:0] next_rs1 = last_count ? next_instr[REG_ADDR_BITS+14:15] : instr[REG_ADDR_BITS+14:15];
     wire [REG_ADDR_BITS-1:0] next_rs2 = last_count ? next_instr[REG_ADDR_BITS+19:20] : instr[REG_ADDR_BITS+19:20];
 
-    wire wr_en = alu_write || (is_jmp && cycle == 1) || is_load_upper || (((is_mem && !is_store) || is_mul) && (cycle == 2));
+    wire wr_en = alu_write || ((is_jmp || is_mul) && cycle == 1) || is_load_upper || (is_mem && !is_store && (cycle == 2));
     wire wr_next_en = slt_req;
     wire read_through = wr_next_en;
     nanoV_registers #(.REG_ADDR_BITS(REG_ADDR_BITS), .NUM_REGS(NUM_REGS)) 
@@ -59,7 +59,7 @@ module nanoV_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
                         is_branch ? {2'b00,instr[14:13]} :
                         {instr[30] && instr[5],instr[14:12]};
     wire alu_select_rs2 = instr[5] && !is_jmp && !is_branch_cycle1 && !is_load_upper && !is_mem;
-    wire alu_write = (instr[4:2] == 3'b100) && (!is_mul || cycle[1]);
+    wire alu_write = (instr[4:2] == 3'b100) && !is_mul;
     wire alu_imm = is_jmp ? ((cycle == 0) ? (is_jal ? j_imm[counter] : i_imm[counter]) : (counter == 2)) : 
                    is_branch ? b_imm[counter] :
                    is_load_upper ? u_imm[counter] :
@@ -95,7 +95,7 @@ module nanoV_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
     nanoV_shift shifter({instr[30],alu_op[2:0]}, counter, stored_data, shift_amt, shifter_out, shift_stored, shift_in);
 
     wire mul_out;
-    nanoV_mul multiplier(clk, rstn && is_mul, stored_data, data_rs1 && cycle[0], is_mul && cycle[1], mul_out);
+    nanoV_mul multiplier(clk, stored_data, data_rs1 && is_mul && cycle[0], mul_out);
 
     assign data_rd = (is_mem && !is_store)  ? (use_ext_data_in ? ext_data_in : stored_data[6]) :
                      (is_mul) ? mul_out :
@@ -106,12 +106,12 @@ module nanoV_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
     // Various instructions require us to buffer a register
     wire store_data_in = (is_jmp || is_branch_cycle1 || (is_mem && cycle == 0)) ? alu_out :
                          (alu_op[1:0] == 2'b01) ? ((cycle == 1 && shift_stored) ? shift_in : data_rs1) : data_rs2;
-    wire do_store = ((alu_op[1:0] == 2'b01) && (cycle == 0 || shift_stored)) || is_mem || is_jmp || is_branch_cycle1 || is_mul;
+    wire do_store = ((alu_op[1:0] == 2'b01) && (cycle == 0 || shift_stored)) || is_mem || is_jmp || is_branch_cycle1 || (is_mul && !cycle[0]);
     always @(posedge clk) begin
-        if (shift_data_out || (is_mul && cycle[0])) begin
+        if (shift_data_out) begin
             stored_data[31:1] <= stored_data[30:0];
             stored_data[0] <= is_mem ? (is_store ? data_rs2 : data_in) : 
-                              is_mul ? 1'b0 : stored_data[31];
+                              stored_data[31];
         end else if (do_store) begin
             stored_data[31] <= store_data_in;
             stored_data[30:0] <= stored_data[31:1];

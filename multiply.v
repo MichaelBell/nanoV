@@ -16,27 +16,20 @@
 
 module nanoV_mul (
     input clk,
-    input rstn,
 
     input [31:0] a,
     input b,
 
-    input read_out,
     output d
 );
 
     reg [31:0] accum;
+    wire [31:0] next_accum = accum + a;
 
     always @(posedge clk) begin
-        if (!rstn) begin
-            accum <= 0;
-        end else begin
-            if (read_out) accum <= {1'b0, accum[31:1]};
-            else if (b) accum <= accum + a;
-            else accum <= accum;
-        end
+        accum <= {1'b0, b ? next_accum[31:1] : accum[31:1]};
     end
 
-    assign d = accum[0];
+    assign d = b ? next_accum[0] : accum[0];
 
 endmodule

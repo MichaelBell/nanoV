@@ -186,11 +186,11 @@ async def test_multiply(nv):
 
     await send_instr(nv, InstructionADDI(x1, x0, 2).encode())
     await send_instr(nv, InstructionADDI(x2, x0, 3).encode())
-    await ThreeCycleInstr(nv, InstructionMUL(x5, x1, x2).encode())
+    await TwoCycleInstr(nv, InstructionMUL(x5, x1, x2).encode())
     assert await get_reg_value(nv, x5) == 6
-    await ThreeCycleInstr(nv, InstructionMUL(x2, x5, x1).encode())
+    await TwoCycleInstr(nv, InstructionMUL(x2, x5, x1).encode())
     assert await get_reg_value(nv, x2) == 12
-    await ThreeCycleInstr(nv, InstructionMUL(x2, x5, x2).encode())
+    await TwoCycleInstr(nv, InstructionMUL(x2, x5, x2).encode())
     assert await get_reg_value(nv, x2) == 12*6
 
 
@@ -234,7 +234,7 @@ ops = [
     Op(InstructionSRL, lambda rs1, rs2: (reg[rs1] & 0xFFFFFFFF) >> (reg[rs2] & 0x1F), 2, ">>l"),
     Op(InstructionSRAI, lambda rs1, imm: reg[rs1] >> imm, 2, ">>i"),
     Op(InstructionSRA, lambda rs1, rs2: reg[rs1] >> (reg[rs2] & 0x1F), 2, ">>"),
-    Op(InstructionMUL, lambda rs1, rs2: reg[rs1] * reg[rs2], 3, "*")
+    Op(InstructionMUL, lambda rs1, rs2: reg[rs1] * reg[rs2], 2, "*")
 ]
 
 @cocotb.test()

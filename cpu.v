@@ -30,9 +30,9 @@ module nanoV_cpu #(parameter NUM_REGS=16) (
 
     function [2:0] cycles_for_instr(input [31:2] instr);
         if (instr[6:2] == 5'b11000) cycles_for_instr = 4; // Taken branch
-        else if (instr[6:5] == 2'b11 || is_mul) cycles_for_instr = 3;  // Jump
+        else if (instr[6:5] == 2'b11) cycles_for_instr = 3;  // Jump
         else if (instr[6] == 0 && instr[4:2] == 0) cycles_for_instr = 5; // Load/store
-        else if (instr[6] == 0 && instr[4] == 1 && instr[2] == 0 && instr[13:12] == 2'b01) cycles_for_instr = 2; // Shift
+        else if (instr[6:4] == 3'b011 && instr[2] == 0 && (instr[25] || instr[13:12] == 2'b01)) cycles_for_instr = 2; // Shift/Mul
         else cycles_for_instr = 1;
     endfunction
 
@@ -42,7 +42,6 @@ module nanoV_cpu #(parameter NUM_REGS=16) (
     wire is_any_jump = (instr[6:5] == 2'b11);
     wire is_jmp = (is_any_jump && instr[4] == 1'b0 && instr[2] == 1'b1);
     wire is_branch = (instr[6:2] == 5'b11000);
-    wire is_mul = (instr[25] && instr[5:2] == 4'b1100);
     reg [2:0] cycle;
     reg [2:0] instr_cycles_reg;
     wire [2:0] next_cycle = cycle + next_counter[5];
