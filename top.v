@@ -49,7 +49,12 @@ module nanoV_top (
         is_addr,
         is_data_in);
 
-    reg connect_gpios, connect_uart, connect_uart_status;
+    localparam PERI_NONE = 0;
+    localparam PERI_GPIO = 1;
+    localparam PERI_UART = 2;
+    localparam PERI_UART_STATUS = 3;
+
+    reg [1:0] connect_peripheral;
     
     wire [31:0] reversed_data_out;
     genvar i;
@@ -59,14 +64,13 @@ module nanoV_top (
 
     always @(posedge cpu_clk) begin
         if (!rstn) begin 
-            connect_gpios <= 0;
-            connect_uart <= 0;
-            connect_uart_status <= 0;
+            connect_peripheral <= PERI_NONE;
         end
         else if (is_addr) begin
-            connect_gpios <= (data_out == 32'h10000000);
-            connect_uart <= (data_out == 32'h10000010);
-            connect_uart_status <= (data_out == 32'h10000014);
+            if (data_out == 32'h10000000) connect_peripheral <= PERI_GPIO;
+            else if (data_out == 32'h10000010) connect_peripheral <= PERI_UART;
+            else if (data_out == 32'h10000014) connect_peripheral <= PERI_UART_STATUS;
+            else connect_peripheral <= PERI_NONE;
         end
     end
 
@@ -74,7 +78,7 @@ module nanoV_top (
     always @(posedge cpu_clk) begin
         if (!rstn)
             led_data <= 0;
-        else if (is_data && connect_gpios)
+        else if (is_data && connect_peripheral == PERI_GPIO)
             led_data <= reversed_data_out;
     end
 
@@ -82,11 +86,11 @@ module nanoV_top (
     wire uart_rx_valid;
     wire [7:0] uart_rx_data;
     assign data_in[31:8] = 0;
-    assign data_in[7:0] = connect_gpios ? {5'b0, button3, button2, button1} : 
-                          connect_uart ? uart_rx_data :
-                          connect_uart_status ? {6'b0, uart_rx_valid, uart_tx_busy} : 0;
+    assign data_in[7:0] = connect_peripheral == PERI_GPIO ? {5'b0, button3, button2, button1} : 
+                          connect_peripheral == PERI_UART ? uart_rx_data :
+                          connect_peripheral == PERI_UART_STATUS ? {6'b0, uart_rx_valid, uart_tx_busy} : 0;
 
-    wire uart_tx_start = is_data && connect_uart;
+    wire uart_tx_start = is_data && connect_peripheral == PERI_UART;
     wire [7:0] uart_tx_data = reversed_data_out[7:0];
 
     uart_tx #(.CLK_HZ(12_000_000), .BIT_RATE(93_750)) i_uart_tx(
@@ -103,7 +107,7 @@ module nanoV_top (
         .resetn(rstn),
         .uart_rxd(uart_rxd),
         .uart_rts(uart_rts),
-        .uart_rx_read(connect_uart && is_data_in),
+        .uart_rx_read(connect_peripheral == PERI_UART && is_data_in),
         .uart_rx_valid(uart_rx_valid),
         .uart_rx_data(uart_rx_data) 
     );
