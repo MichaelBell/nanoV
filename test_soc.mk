@@ -8,7 +8,7 @@ PROG_FILE ?= test.mem
 START_SIG ?= 0
 END_SIG ?= 0
 
-VERILOG_SOURCES += $(PWD)/register.v $(PWD)/alu.v $(PWD)/core.v $(PWD)/shift.v $(PWD)/cpu.v $(PWD)/top.v $(PWD)/tb_top_with_ram.v $(PWD)/ledscan.v $(PWD)/sim_sram.v $(PWD)/uart/uart_tx.v $(PWD)/uart/uart_rx.v
+VERILOG_SOURCES += $(PWD)/register.v $(PWD)/alu.v $(PWD)/core.v $(PWD)/shift.v $(PWD)/multiply.v $(PWD)/cpu.v $(PWD)/top.v $(PWD)/tb_top_with_ram.v $(PWD)/ledscan.v $(PWD)/sim_sram.v $(PWD)/uart/uart_tx.v $(PWD)/uart/uart_rx.v
 COMPILE_ARGS    += -DSIM -DPROG_FILE=\"$(PROG_FILE)\" -DSTART_SIG=$(START_SIG) -DEND_SIG=$(END_SIG)
 
 COMPILE_ARGS += -DICE40 -DNO_ICE40_DEFAULT_ASSIGNMENTS

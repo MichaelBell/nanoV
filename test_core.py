@@ -163,6 +163,36 @@ async def test_shift(nv):
     await TwoCycleInstr(nv, InstructionSRA(x2, x5, x1).encode())
     assert await get_reg_value(nv, x2) == 0xFFFFC000
 
+async def ThreeCycleInstr(nv, instr):
+    nv.cycle.value = 0
+    await send_instr(nv, instr)
+    nv.cycle.value = 1
+    await ClockCycles(nv.clk, 32)
+    nv.cycle.value = 2
+    await ClockCycles(nv.clk, 32)
+    nv.cycle.value = 0
+
+@cocotb.test()
+async def test_multiply(nv):
+    clock = Clock(nv.clk, 4, units="ns")
+    cocotb.start_soon(clock.start())
+    nv.rstn.value = 0
+    await ClockCycles(nv.clk, 2)
+    nv.rstn.value = 1
+    nv.cycle.value = 0
+    nv.instr.value = InstructionNOP().encode()
+    nv.next_instr.value = InstructionNOP().encode()
+    await ClockCycles(nv.clk, 32)
+
+    await send_instr(nv, InstructionADDI(x1, x0, 2).encode())
+    await send_instr(nv, InstructionADDI(x2, x0, 3).encode())
+    await ThreeCycleInstr(nv, InstructionMUL(x5, x1, x2).encode())
+    assert await get_reg_value(nv, x5) == 6
+    await ThreeCycleInstr(nv, InstructionMUL(x2, x5, x1).encode())
+    assert await get_reg_value(nv, x2) == 12
+    await ThreeCycleInstr(nv, InstructionMUL(x2, x5, x2).encode())
+    assert await get_reg_value(nv, x2) == 12*6
+
 
 reg = [0] * 16
 
@@ -204,6 +234,7 @@ ops = [
     Op(InstructionSRL, lambda rs1, rs2: (reg[rs1] & 0xFFFFFFFF) >> (reg[rs2] & 0x1F), 2, ">>l"),
     Op(InstructionSRAI, lambda rs1, imm: reg[rs1] >> imm, 2, ">>i"),
     Op(InstructionSRA, lambda rs1, rs2: reg[rs1] >> (reg[rs2] & 0x1F), 2, ">>"),
+    Op(InstructionMUL, lambda rs1, rs2: reg[rs1] * reg[rs2], 3, "*")
 ]
 
 @cocotb.test()
