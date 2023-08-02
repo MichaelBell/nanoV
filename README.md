@@ -18,7 +18,7 @@ The eventual goal is to submit this design to a Tiny Tapeout on ASIC, where mini
 
 Inspired by Luke Wren's [Whisk 16](https://github.com/Wren6991/tt02-whisk-serial-processor) submission for Tiny Tapeout 2, this processor is bit serial and the general purpose registers can be implemented as a ring of DFFs that rotate every clock - no exceptions.  Only 2 bits of each 32-bit register can be accessed.  These rules minimize the complexity of the register flip flops, minimizing area.
 
-On FPGA, the 30 inaccessible bits of the registers are stored in a BRAM which is used as a FIFO.
+On FPGA, the 30 inaccessible bits of the registers can be stored in a BRAM which is used as a FIFO.
 
 The processor executes simple instructions in "1 cycle", each cycle is 32 clocks long.  While the instruction is executed the next instruction is read over SPI.  For multi-cycle instructions that don't access memory, the SPI clock is gated once the next instruction is read until the executing instruction is complete.
 
@@ -28,7 +28,13 @@ For loads and stores the SPI memory access must be interrupted, the data access 
 
 The PC is 22 bits internally, allowing programs to sit in the bottom 4MB of the connected RAM.  SPI addresses are 24-bit, so up to 16MB of data can be addressed.
 
-I intend to add GPIO access using addresses above the first 16MB, which should allow for bit-banged UART.  In future I may add more peripherals.
+Peripherals are accessed at adresses around 0x10000000, currently this consists of GPIO and a very simple UART.  Currently peripheral loads and stores still take 5 cycles, but I intend to improve that.
+
+Instructions implemented are:
+- All of RV32E except FENCE, EBREAK and ECALL.
+- MUL from RV32M performs a 32-bit by 16-bit multiply (only the bottom 16-bits of rs2 are used), allowing a full 32x32 multiply to be implemented easily in software.
+
+Registers gp (x3) and tp (x4) have hardcoded values, as the standard ABI doesn't modify them.  gp is set to 0x1000, allowing cheap loads and stores to the bottom 6KB of RAM by offsetting against x0 for the first 2KB and gp for the next 4KB.  tp is set to 0x10000000 for quick access to the peripherals.
 
 ## Instruction timing
 
@@ -41,6 +47,7 @@ Current instruction timing is as follows (each cycle is 32 clocks):
 | LUI/AUIPC   | 1      |
 | SLT         | 1      |
 | Shifts      | 2      |
+| Mul (32x16) | 2      |
 | JAL/JALR    | 3      |
 | Branch (not taken) | 1 |
 | Branch (taken) | 4   |
