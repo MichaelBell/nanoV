@@ -32,7 +32,7 @@ module nanoV_cpu #(parameter NUM_REGS=16) (
         if (instr[6:2] == 5'b11000) cycles_for_instr = 4; // Taken branch
         else if (instr[6:5] == 2'b11) cycles_for_instr = 3;  // Jump
         else if (instr[6] == 0 && instr[4:2] == 0) cycles_for_instr = 5; // Load/store
-        else if (instr[6:4] == 3'b011 && instr[2] == 0 && (instr[25] || instr[13:12] == 2'b01)) cycles_for_instr = 2; // Shift/Mul
+        else if (instr[6] == 0 && instr[4] == 1 && instr[2] == 0 && ((instr[25] && instr[5]) || instr[13:12] == 2'b01)) cycles_for_instr = 2; // Shift/Mul
         else cycles_for_instr = 1;
     endfunction
 
