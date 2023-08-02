@@ -234,7 +234,7 @@ ops = [
     Op(InstructionSRL, lambda rs1, rs2: (reg[rs1] & 0xFFFFFFFF) >> (reg[rs2] & 0x1F), 2, ">>l"),
     Op(InstructionSRAI, lambda rs1, imm: reg[rs1] >> imm, 2, ">>i"),
     Op(InstructionSRA, lambda rs1, rs2: reg[rs1] >> (reg[rs2] & 0x1F), 2, ">>"),
-    Op(InstructionMUL, lambda rs1, rs2: reg[rs1] * reg[rs2], 2, "*")
+    Op(InstructionMUL, lambda rs1, rs2: reg[rs1] * (reg[rs2] & 0xFFFF), 2, "*")
 ]
 
 @cocotb.test()
@@ -250,7 +250,7 @@ async def test_random(nv):
     await ClockCycles(nv.clk, 32)
 
     seed = random.randint(0, 0xFFFFFFFF)
-    #seed = 892186356
+    #seed = 2843241462
     debug = False
     for test in range(100):
         random.seed(seed + test)

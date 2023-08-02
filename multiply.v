@@ -14,20 +14,20 @@
  * which causes the result to be shifted right.
  */
 
-module nanoV_mul (
+module nanoV_mul #(parameter A_BITS=32) (
     input clk,
 
-    input [31:0] a,
+    input [A_BITS-1:0] a,
     input b,
 
     output d
 );
 
-    reg [31:0] accum;
-    wire [31:0] next_accum = accum + a;
+    reg [A_BITS-1:0] accum;
+    wire [A_BITS:0] next_accum = {1'b0, accum} + {1'b0, a};
 
     always @(posedge clk) begin
-        accum <= {1'b0, b ? next_accum[31:1] : accum[31:1]};
+        accum <= b ? next_accum[A_BITS:1] : {1'b0, accum[A_BITS-1:1]};
     end
 
     assign d = b ? next_accum[0] : accum[0];

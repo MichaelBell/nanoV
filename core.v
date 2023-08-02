@@ -95,7 +95,7 @@ module nanoV_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
     nanoV_shift shifter({instr[30],alu_op[2:0]}, counter, stored_data, shift_amt, shifter_out, shift_stored, shift_in);
 
     wire mul_out;
-    nanoV_mul multiplier(clk, stored_data, data_rs1 && is_mul && cycle[0], mul_out);
+    nanoV_mul #(.A_BITS(16)) multiplier(clk, stored_data[15:0], data_rs1 && is_mul && cycle[0], mul_out);
 
     assign data_rd = (is_mem && !is_store)  ? (use_ext_data_in ? ext_data_in : stored_data[6]) :
                      (is_mul) ? mul_out :
