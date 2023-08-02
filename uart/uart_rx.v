@@ -164,7 +164,7 @@ always @(posedge clk) begin : p_fsm_state
 end
 
 // Sets RTS
-always @(posedge clk) begin : p_rts
+always @(posedge clk or negedge resetn) begin : p_rts
     if (!resetn) begin
         uart_rts <= 1'b1;
     end else begin
@@ -174,7 +174,7 @@ end
 
 //
 // Responsible for updating the internal value of the rxd_reg.
-always @(posedge clk) begin : p_rxd_reg
+always @(posedge clk or negedge resetn) begin : p_rxd_reg
     if(!resetn) begin
         rxd_reg     <= 1'b1;
     end else begin
