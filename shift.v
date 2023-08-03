@@ -19,7 +19,7 @@ module nanoV_shift (
     assign top_bit = op[3] ? a[31] : 1'b0;
 
     wire negate = op[2] ? 1'b0 : 1'b1;
-    wire [5:0] counter_shifted = {1'b0,counter} + {negate,b} + negate;
+    wire [5:0] counter_shifted = {1'b0,counter} + {negate,b} + {5'b0,negate};
     wire a_left = counter_shifted[5] ? 1'b0 : a[0];
     wire a_right = counter_shifted[5] ? top_bit : a[b];
 

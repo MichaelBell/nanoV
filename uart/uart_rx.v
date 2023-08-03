@@ -102,7 +102,7 @@ wire mid_bit      = cycle_counter == CYCLES_PER_BIT / 2;
 // Handle picking the next state.
 function [3:0] next_fsm_state();
     case(fsm_state)
-        FSM_IDLE : next_fsm_state = rxd_reg     ? FSM_IDLE  : FSM_START;
+        FSM_IDLE : next_fsm_state = rxd_reg || uart_rxd ? FSM_IDLE  : FSM_START;
         
         // Only go STOP -> READY on a valid STOP bit.
         FSM_STOP : next_fsm_state = mid_bit     ? (rxd_reg ? FSM_READY : FSM_IDLE) : FSM_STOP;

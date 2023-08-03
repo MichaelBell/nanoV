@@ -44,7 +44,7 @@ module nanoV_cpu #(parameter NUM_REGS=16) (
     wire is_branch = (instr[6:2] == 5'b11000);
     reg [2:0] cycle;
     reg [2:0] instr_cycles_reg;
-    wire [2:0] next_cycle = cycle + next_counter[5];
+    wire [2:0] next_cycle = cycle + {2'b0, next_counter[5]};
     wire [2:0] instr_cycles = (next_cycle == 1 && next_counter[5] && is_branch && !take_branch) ? 1 : instr_cycles_reg;
     wire [2:0] instr_cycles_assume_branch_not_taken = (next_cycle == 1 && next_counter[5] && is_branch) ? 1 : instr_cycles_reg;
     reg [31:0] next_instr;

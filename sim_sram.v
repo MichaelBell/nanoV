@@ -19,7 +19,7 @@ module sim_spi_ram (
     reg writing;
     reg error;
 
-    reg [31:0] data [0:16384];
+    reg [31:0] data [0:16383];
 
     parameter INIT_FILE = "";
     initial begin
@@ -40,7 +40,7 @@ module sim_spi_ram (
             start_count <= next_start_count;
 
             if (writing) begin
-                data[addr[18:5]][addr[4:0]] <= spi_mosi;
+                data[addr[18:5]][addr[4:3] * 8 + (7 - addr[2:0])] <= spi_mosi;
             end else if (!reading && !writing && !error) begin
                 cmd <= {cmd[30:0],spi_mosi};
             end
@@ -72,5 +72,5 @@ module sim_spi_ram (
         debug_data <= data[debug_addr];
     end
 
-    assign spi_miso = reading ? data[addr[18:5]][addr[4:0]] : 0;
+    assign spi_miso = reading ? data[addr[18:5]][addr[4:3] * 8 + (7 - addr[2:0])] : 0;
 endmodule
