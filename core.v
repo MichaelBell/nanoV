@@ -123,8 +123,3 @@ module nanoV_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
     assign shift_pc = (is_jmp || is_branch_cycle1 || (is_load_upper && !instr[5])) && counter < 22 && cycle < 2;
 
 endmodule
-
-// Idea for 3 cycle MUL:
-// - First cycle: populate stored_data with one argument
-// - Second cycle: shift stored_data and add to an accumulator when corresponding bit in second argument is non-zero
-// - Third cycle: shift accumulator out to dest reg

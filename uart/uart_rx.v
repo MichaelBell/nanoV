@@ -94,8 +94,8 @@ assign uart_rx_data = recieved_data;
 // FSM next state selection.
 // 
 
-wire next_bit     = cycle_counter == CYCLES_PER_BIT;
-wire mid_bit      = cycle_counter == CYCLES_PER_BIT / 2;
+wire next_bit     = cycle_counter == COUNT_REG_LEN'(CYCLES_PER_BIT);
+wire mid_bit      = cycle_counter == COUNT_REG_LEN'(CYCLES_PER_BIT / 2);
 
 //
 // Handle picking the next state.
@@ -104,7 +104,7 @@ function [3:0] next_fsm_state();
         FSM_IDLE : next_fsm_state = rxd_reg[0]  ? FSM_IDLE  : FSM_START;
         
         // Only go STOP -> READY on a valid STOP bit.
-        FSM_STOP : next_fsm_state = mid_bit     ? (rxd_reg ? FSM_READY : FSM_IDLE) : FSM_STOP;
+        FSM_STOP : next_fsm_state = mid_bit     ? (rxd_reg[0] ? FSM_READY : FSM_IDLE) : FSM_STOP;
 
         FSM_READY: next_fsm_state = uart_rx_read? FSM_IDLE  : FSM_READY;
 
@@ -134,7 +134,7 @@ always @(posedge clk) begin : p_bit_sample
     if(!resetn) begin
         bit_sample <= 1'b0;
     end else if (mid_bit) begin
-        bit_sample <= rxd_reg;
+        bit_sample <= rxd_reg[0];
     end
 end
 

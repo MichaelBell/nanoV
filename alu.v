@@ -36,6 +36,7 @@ module nanoV_alu (
             3'b111: operate = op_a & op_b;
             3'b110: operate = op_a | op_b;
             3'b100: operate = op_a ^ op_b;
+            default: operate = 1'b0;
         endcase
     endfunction
 
