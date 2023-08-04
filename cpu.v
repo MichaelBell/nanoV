@@ -21,7 +21,7 @@ module nanoV_cpu #(parameter NUM_REGS=16) (
 
     reg [4:0] counter;
     wire [5:0] next_counter = {1'b0,counter} + 1;
-    always @(posedge clk or negedge rstn)
+    always @(posedge clk)
         if (!rstn) begin
             counter <= 0;
         end else begin
@@ -223,7 +223,7 @@ module nanoV_cpu #(parameter NUM_REGS=16) (
 
     wire next_instr_new_bit = read_instr ? spi_data_in : next_instr[0];
 
-    always @(posedge clk or negedge rstn) begin
+    always @(posedge clk) begin
         if (!rstn) begin
             next_instr <= 32'b000000000000_00000_000_00000_0010011;
         end else begin
