@@ -86,7 +86,7 @@ localparam FSM_END = FSM_STOP + STOP_BITS - 1;
 assign uart_tx_busy = fsm_state != FSM_IDLE;
 assign uart_txd     = txd_reg;
 
-wire next_bit     = cycle_counter == COUNT_REG_LEN'(CYCLES_PER_BIT);
+wire next_bit     = cycle_counter == CYCLES_PER_BIT[COUNT_REG_LEN-1:0];
 
 //
 // Handle picking the next state.

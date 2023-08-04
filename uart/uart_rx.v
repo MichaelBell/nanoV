@@ -94,8 +94,8 @@ assign uart_rx_data = recieved_data;
 // FSM next state selection.
 // 
 
-wire next_bit     = cycle_counter == COUNT_REG_LEN'(CYCLES_PER_BIT);
-wire mid_bit      = cycle_counter == COUNT_REG_LEN'(CYCLES_PER_BIT / 2);
+wire next_bit     = cycle_counter == CYCLES_PER_BIT[COUNT_REG_LEN-1:0];
+wire mid_bit      = cycle_counter == CYCLES_PER_BIT[COUNT_REG_LEN-1:0] / 2;
 
 //
 // Handle picking the next state.
