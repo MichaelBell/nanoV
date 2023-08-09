@@ -28,13 +28,13 @@ For loads and stores the SPI memory access must be interrupted, the data access 
 
 The PC is 22 bits internally, allowing programs to sit in the bottom 4MB of the connected RAM.  SPI addresses are 24-bit, so up to 16MB of data can be addressed.
 
-Peripherals are accessed at adresses around 0x10000000, currently this consists of GPIO and a very simple UART.  Currently peripheral loads and stores still take 5 cycles, but I intend to improve that.
+Peripherals are accessed at adresses around 0x10000000, currently this consists of GPIO and a very simple UART.  Peripheral loads and stores take 1 cycle, providing they use an offset against the hardwired value of tp for addressing.
 
 Instructions implemented are:
 - All of RV32E except FENCE, EBREAK and ECALL.
 - MUL from RV32M performs a 32-bit by 16-bit multiply (only the bottom 16-bits of rs2 are used), allowing a full 32x32 multiply to be implemented easily in software.
 
-Registers gp (x3) and tp (x4) have hardcoded values, as the standard ABI doesn't modify them.  gp is set to 0x1000, allowing cheap loads and stores to the bottom 6KB of RAM by offsetting against x0 for the first 2KB and gp for the next 4KB.  tp is set to 0x10000000 for quick access to the peripherals.
+Registers gp (x3) and tp (x4) have hardwired values, as the standard ABI doesn't modify them.  gp is set to 0x1000, allowing cheap loads and stores to the bottom 6KB of RAM by offsetting against x0 for the first 2KB and gp for the next 4KB.  tp is set to 0x10000000 for quick access to the peripherals.
 
 ## Instruction timing
 

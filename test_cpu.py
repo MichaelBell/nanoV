@@ -5,7 +5,7 @@ from cocotb.clock import Clock
 from cocotb.triggers import Timer, ClockCycles
 
 from riscvmodel.insn import *
-from riscvmodel.regnames import x0, x1, x2, x5, x6
+from riscvmodel.regnames import x0, x1, x2, x4, x5, x6
 
 pc = 0
 
@@ -449,3 +449,106 @@ async def test_slt(nv):
     await send_instr(nv, InstructionSLT(x5, x1, x6).encode())
     assert await get_reg_value(nv, x2) == 1
     assert await get_reg_value(nv, x5) == 0
+
+@cocotb.test()
+async def test_fast_store(nv):
+    global pc
+
+    await do_start(nv)
+    await expect_read(nv, 0)
+
+    if nv.is_buffered.value == 0:
+        await ClockCycles(nv.clk, 1)
+    else:
+        return
+
+    addr = random.randint(0, 255) * 4
+    await send_instr(nv, InstructionADDI(x1, x0, 279).encode())
+    await send_instr(nv, InstructionSW(x4, x1, addr).encode())
+
+    instr = InstructionADDI(x1, x0, 279).encode()
+
+    pc += 4
+    await Timer(1, "ns")
+    nv.spi_data_in.value = instr & 1
+
+    if nv.is_buffered.value == 1:
+        await ClockCycles(nv.clk, 1)
+        await Timer(1, "ns")
+
+    assert nv.store_addr_out.value == 1
+    assert nv.store_data_out.value == 0
+    assert nv.data_out.value == 0x10000000 + addr
+
+    if nv.is_buffered.value == 0:
+        await ClockCycles(nv.clk, 1)
+        await Timer(1, "ns")    
+
+    for i in range(1, 32):
+        nv.spi_data_in.value = (instr >> i) & 1
+        await ClockCycles(nv.clk, 1)
+        await Timer(1, "ns")    
+        assert nv.store_addr_out.value == 0
+        assert nv.store_data_out.value == 0
+
+    pc += 4
+    nv.spi_data_in.value = instr & 1
+    await ClockCycles(nv.clk, 1)
+    await Timer(1, "ns")    
+    assert nv.store_addr_out.value == 0
+    assert nv.store_data_out.value == 1
+    assert nv.reversed_data_out.value == 279
+
+    for i in range(1,32):
+        nv.spi_data_in.value = (instr >> i) & 1
+        await ClockCycles(nv.clk, 1)
+        await Timer(1, "ns")    
+        assert nv.store_addr_out.value == 0
+        assert nv.store_data_out.value == 0
+
+@cocotb.test()
+async def test_fast_load(nv):
+    global pc
+
+    await do_start(nv)
+    await expect_read(nv, 0)
+
+    if nv.is_buffered.value == 0:
+        await ClockCycles(nv.clk, 1)
+    else:
+        return
+
+    addr = random.randint(0, 255) * 4
+    await send_instr(nv, InstructionLW(x2, x4, addr).encode())
+
+    instr = InstructionADDI(x1, x0, 279).encode()
+    assert nv.store_addr_out.value == 1
+    assert nv.data_in_read.value == 0
+    assert nv.data_out.value == 0x10000000 + addr
+
+    pc += 4
+    await Timer(1, "ns")
+    nv.ext_data_in.value = 0x12345678
+
+    for i in range(32):
+        nv.spi_data_in.value = (instr >> i) & 1
+        await ClockCycles(nv.clk, 1)
+        await Timer(1, "ns")    
+        assert nv.store_addr_out.value == 0
+        assert nv.data_in_read.value == 0
+
+    pc += 4
+    nv.spi_data_in.value = instr & 1
+    await ClockCycles(nv.clk, 1)
+    await Timer(1, "ns")    
+    assert nv.store_addr_out.value == 0
+    assert nv.data_in_read.value == 1
+
+    for i in range(1,32):
+        nv.spi_data_in.value = (instr >> i) & 1
+        await ClockCycles(nv.clk, 1)
+        await Timer(1, "ns")    
+        assert nv.store_addr_out.value == 0
+        assert nv.data_in_read.value == 0
+
+    assert await get_reg_value(nv, x2) == 0x12345678

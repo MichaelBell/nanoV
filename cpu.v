@@ -31,12 +31,14 @@ module nanoV_cpu #(parameter NUM_REGS=16) (
     function [2:0] cycles_for_instr(input [31:2] instr);
         if (instr[6:2] == 5'b11000) cycles_for_instr = 4; // Taken branch
         else if (instr[6:5] == 2'b11) cycles_for_instr = 3;  // Jump
-        else if (instr[6] == 0 && instr[4:2] == 0) cycles_for_instr = 5; // Load/store
+        else if (instr[6] == 0 && instr[4:2] == 0 && instr[19:15] != 5'b00100) cycles_for_instr = 5; // Load/store
         else if (instr[6] == 0 && instr[4] == 1 && instr[2] == 0 && ((instr[25] && instr[5]) || instr[13:12] == 2'b01)) cycles_for_instr = 2; // Shift/Mul
         else cycles_for_instr = 1;
     endfunction
 
     wire is_mem = (instr[6] == 0 && instr[4:2] == 0);
+    wire is_normal_mem = is_mem && instr[19:15] != 5'b00100;
+    wire is_fast_mem = is_mem && instr[19:15] == 5'b00100;
     wire is_store = is_mem && instr[5];
     wire is_load = is_mem && !instr[5];
     wire is_any_jump = (instr[6:5] == 2'b11);
@@ -63,15 +65,32 @@ module nanoV_cpu #(parameter NUM_REGS=16) (
                 cycle <= next_cycle;
         end
 
-    assign store_data_out = (counter == 0 && is_store && cycle == 2);
-    assign data_in_read = (counter == 0 && is_load && cycle == 3);
-    assign store_addr_out = (counter == 0 && is_mem && cycle == 1);
+    wire is_fast_addr = next_instr[6] == 0 && next_instr[4:2] == 0 && next_instr[19:15] == 5'b00100 && next_cycle == instr_cycles;
+    reg store_data_next, data_read_next;
+    always @(posedge clk) begin
+        if (!rstn) begin
+            store_data_next <= 0;
+            data_read_next <= 0;
+        end else begin
+            store_data_next <= (counter == 31 && is_store && cycle == (is_normal_mem ? 1 : 0));
+            data_read_next <= (counter == 31 && is_load && cycle == (is_normal_mem ? 2 : 0));
+        end
+    end
+    assign store_data_out = store_data_next;
+    assign data_in_read = data_read_next;
+    assign store_addr_out = is_fast_addr || (counter == 0 && is_normal_mem && cycle == 1);
+
+    wire [11:0] fast_addr_imm = {next_instr[31:25], next_instr[5] ? next_instr[11:9] : next_instr[24:22], 2'b00};
+    wire [31:0] fast_addr = {20'h10000, fast_addr_imm};
+    assign data_out = is_fast_addr ? fast_addr : core_data_out;
 
     wire shift_data_out;
     wire take_branch;
     wire read_pc;
     wire data_in;
-    reg use_ext_data_in;
+    wire [31:0] core_data_out;
+    reg use_ext_data_in_reg;
+    wire use_ext_data_in = use_ext_data_in_reg || (is_fast_mem && !instr[5]);
     reg last_data_in;
     always @(posedge clk)
         last_data_in <= instr[14] ? 1'b0 : data_in;
@@ -89,7 +108,7 @@ module nanoV_cpu #(parameter NUM_REGS=16) (
         use_ext_data_in,
         shift_data_out,
         read_pc,
-        data_out,
+        core_data_out,
         take_branch
     );
 
@@ -102,7 +121,7 @@ module nanoV_cpu #(parameter NUM_REGS=16) (
     wire starting_read_cmd = counter[2] && !counter[1];
     wire starting_instr_out = starting_send_pc ? (is_any_jump ? data_out[29] : pc[21]) : starting_read_cmd;
     
-    wire [21:0] next_pc = (counter == 31 && ((next_cycle == instr_cycles && read_instr && !first_instr[0]) || (is_data_instr && cycle == 0))) ? pc + 4 : pc;
+    wire [21:0] next_pc = (counter == 31 && ((next_cycle == instr_cycles && read_instr && !first_instr[0]) || (is_normal_mem && cycle == 0))) ? pc + 4 : pc;
 
     wire is_write = instr[5];
     reg start_data_stream;
@@ -114,8 +133,6 @@ module nanoV_cpu #(parameter NUM_REGS=16) (
     wire starting_data_cmd = is_write ? starting_write_data_cmd : starting_read_data_cmd;
     wire starting_data_out = starting_send_data_addr ? data_out[23] : starting_data_cmd;
 
-    wire is_data_instr = (instr[6] == 0) && (instr[4:2] == 0);
-
     always @(posedge clk) begin
         if (!rstn) begin
             start_instr_stream <= 1;
@@ -125,7 +142,7 @@ module nanoV_cpu #(parameter NUM_REGS=16) (
             start_data_stream <= 0;
             starting_data_stream <= 0;
             data_xfer <= 0;
-            use_ext_data_in <= 0;
+            use_ext_data_in_reg <= 0;
             spi_select <= 1;
             spi_clk_enable <= 1;
             pc <= 0;
@@ -140,7 +157,7 @@ module nanoV_cpu #(parameter NUM_REGS=16) (
                 spi_select <= 1;
             end else begin
                 if (counter == 0) begin
-                    if (is_data_instr && cycle == 0) begin
+                    if (is_normal_mem && cycle == 0) begin
                         read_instr <= 0;
                         first_instr <= 0;
                         start_data_stream <= 1;
@@ -164,14 +181,14 @@ module nanoV_cpu #(parameter NUM_REGS=16) (
                         data_xfer <= 0;
                         start_instr_stream <= 1;
                         spi_select <= 1;
-                    end else if (starting_data_stream && is_mem && data_out[31:24] != 0) begin
+                    end else if (starting_data_stream && is_normal_mem && data_out[31:24] != 0) begin
                         // Cancel SPI write to high address
                         spi_select <= 1;
                         if (!instr[5]) begin
-                            use_ext_data_in <= 1;
+                            use_ext_data_in_reg <= 1;
                         end
-                    end else if (use_ext_data_in && cycle == 2) begin
-                        use_ext_data_in <= 0;
+                    end else if (use_ext_data_in_reg && cycle == 2) begin
+                        use_ext_data_in_reg <= 0;
                     end
                 end else if (counter == 7) begin
                     if (data_xfer && instr[12]) begin
@@ -192,7 +209,7 @@ module nanoV_cpu #(parameter NUM_REGS=16) (
                         first_instr <= {1'b0,first_instr[1]};
                         read_instr <= 1;
                         spi_clk_enable <= 1;
-                    end else if (!is_data_instr) begin
+                    end else if (!is_normal_mem) begin
                         read_instr <= 0;
                         spi_clk_enable <= 0;
                     end
@@ -214,7 +231,7 @@ module nanoV_cpu #(parameter NUM_REGS=16) (
     always @(posedge clk)
         last_data_xfer <= data_xfer;
 
-    assign shift_data_out = ((is_jmp || is_data_instr) && (cycle != 0)) || (is_branch && cycle[1]);
+    assign shift_data_out = ((is_jmp || is_normal_mem) && (cycle != 0)) || (is_fast_mem) || (is_branch && cycle[1]);
     assign spi_out = starting_instr_stream ? starting_instr_out : 
                      starting_data_stream ?  starting_data_out :
                      is_store ?              data_out[23] : 0;

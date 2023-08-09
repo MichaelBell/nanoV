@@ -26,6 +26,7 @@ module nanoV_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
     wire is_jal = is_jmp && instr[3];
     wire is_branch = (instr[6:2] == 5'b11000);
     wire is_mem = (instr[6] == 0 && instr[4:2] == 0);
+    wire is_fast_mem = instr[19:15] == 5'b00100;
     wire is_store = instr[5];
     wire is_load_upper = (instr[6] == 0 && instr[4:2] == 3'b101);
     wire is_mul = (instr[25] && instr[5:4] == 2'b11 && instr[2] == 1'b0);
@@ -47,7 +48,7 @@ module nanoV_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
     wire [REG_ADDR_BITS-1:0] next_rs1 = last_count ? next_instr[REG_ADDR_BITS+14:15] : instr[REG_ADDR_BITS+14:15];
     wire [REG_ADDR_BITS-1:0] next_rs2 = last_count ? next_instr[REG_ADDR_BITS+19:20] : instr[REG_ADDR_BITS+19:20];
 
-    wire wr_en = alu_write || ((is_jmp || is_mul) && cycle == 1) || is_load_upper || (is_mem && !is_store && (cycle == 2));
+    wire wr_en = alu_write || ((is_jmp || is_mul) && cycle == 1) || is_load_upper || (is_mem && !is_store && (cycle == (is_fast_mem ? 0 : 2)));
     wire wr_next_en = slt_req;
     wire read_through = wr_next_en;
     nanoV_registers #(.REG_ADDR_BITS(REG_ADDR_BITS), .NUM_REGS(NUM_REGS)) 
@@ -104,7 +105,7 @@ module nanoV_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
                                    (is_branch && last_count && ((instr[14] ? slt : is_equal) ^ instr[12])));
 
     // Various instructions require us to buffer a register
-    wire store_data_in = (is_jmp || is_branch_cycle1 || (is_mem && cycle == 0)) ? alu_out :
+    wire store_data_in = (is_jmp || is_branch_cycle1 || (is_mem && !is_fast_mem && cycle == 0)) ? alu_out :
                          (alu_op[1:0] == 2'b01) ? ((cycle == 1 && shift_stored) ? shift_in : data_rs1) : data_rs2;
     wire do_store = ((alu_op[1:0] == 2'b01) && (cycle == 0 || shift_stored)) || is_mem || is_jmp || is_branch_cycle1 || (is_mul && !cycle[0]);
     always @(posedge clk) begin
