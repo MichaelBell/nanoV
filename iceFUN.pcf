@@ -21,10 +21,10 @@ set_io --warn-no-port uart_txd    G1
 set_io --warn-no-port uart_rxd    H1
 set_io --warn-no-port uart_rts    J1
 
-set_io --warn-no-port spi_miso    N1
 set_io --warn-no-port spi_select  L1
-set_io --warn-no-port spi_clk_out P1
 set_io --warn-no-port spi_mosi    M1
+set_io --warn-no-port spi_miso    N1
+set_io --warn-no-port spi_clk_out P1
 
 
 set_io --warn-no-port clk12MHz	P7
