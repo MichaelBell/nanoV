@@ -126,7 +126,7 @@ async def load_reg(nv, reg, val, bits=32, signed=False, external=False):
             await ClockCycles(nv.clk, 1)
         await ClockCycles(nv.clk, 30)
         assert nv.store_addr_out.value == 1
-        assert nv.data_out.value == addr + 0x10000000
+        assert nv.addr_out.value == addr + 0x10000000
 
         nv.ext_data_in.value = val
         await ClockCycles(nv.clk, 61)
@@ -463,48 +463,54 @@ async def test_fast_store(nv):
         return
 
     addr = random.randint(0, 255) * 4
+    addr2 = random.randint(0, 255) * 4
     await send_instr(nv, InstructionADDI(x1, x0, 279).encode())
+    await send_instr(nv, InstructionADDI(x2, x0, -523).encode())
     await send_instr(nv, InstructionSW(x4, x1, addr).encode())
 
-    instr = InstructionADDI(x1, x0, 279).encode()
+    instr = InstructionSW(x4, x2, addr2).encode()
 
     pc += 4
     await Timer(1, "ns")
     nv.spi_data_in.value = instr & 1
 
-    if nv.is_buffered.value == 1:
-        await ClockCycles(nv.clk, 1)
-        await Timer(1, "ns")
-
     assert nv.store_addr_out.value == 1
     assert nv.store_data_out.value == 0
-    assert nv.data_out.value == 0x10000000 + addr
+    assert nv.addr_out.value == 0x10000000 + addr
 
-    if nv.is_buffered.value == 0:
-        await ClockCycles(nv.clk, 1)
-        await Timer(1, "ns")    
+    await ClockCycles(nv.clk, 1)
+    await Timer(1, "ns")    
 
-    for i in range(1, 32):
+    for i in range(1, 31):
         nv.spi_data_in.value = (instr >> i) & 1
         await ClockCycles(nv.clk, 1)
         await Timer(1, "ns")    
         assert nv.store_addr_out.value == 0
         assert nv.store_data_out.value == 0
 
+    nv.spi_data_in.value = (instr >> 31) & 1
+    await ClockCycles(nv.clk, 1)
+    await Timer(1, "ns")    
+    assert nv.store_addr_out.value == 1
+    assert nv.store_data_out.value == 1
+    assert nv.data_out.value == 279
+    assert nv.addr_out.value == 0x10000000 + addr2
+
+    instr = InstructionADDI(x2, x0, 0).encode()
     pc += 4
-    nv.spi_data_in.value = instr & 1
+    for i in range(0,31):
+        nv.spi_data_in.value = (instr >> i) & 1
+        await ClockCycles(nv.clk, 1)
+        await Timer(1, "ns")    
+        assert nv.store_addr_out.value == 0
+        assert nv.store_data_out.value == 0
+
+    nv.spi_data_in.value = (instr >> 31) & 1
     await ClockCycles(nv.clk, 1)
     await Timer(1, "ns")    
     assert nv.store_addr_out.value == 0
     assert nv.store_data_out.value == 1
-    assert nv.reversed_data_out.value == 279
-
-    for i in range(1,32):
-        nv.spi_data_in.value = (instr >> i) & 1
-        await ClockCycles(nv.clk, 1)
-        await Timer(1, "ns")    
-        assert nv.store_addr_out.value == 0
-        assert nv.store_data_out.value == 0
+    assert nv.data_out.value == -523 & 0xFFFFFFFF
 
 @cocotb.test()
 async def test_fast_load(nv):
@@ -524,31 +530,23 @@ async def test_fast_load(nv):
     instr = InstructionADDI(x1, x0, 279).encode()
     assert nv.store_addr_out.value == 1
     assert nv.data_in_read.value == 0
-    assert nv.data_out.value == 0x10000000 + addr
+    assert nv.addr_out.value == 0x10000000 + addr
 
     pc += 4
     await Timer(1, "ns")
     nv.ext_data_in.value = 0x12345678
 
-    for i in range(32):
+    for i in range(31):
         nv.spi_data_in.value = (instr >> i) & 1
         await ClockCycles(nv.clk, 1)
         await Timer(1, "ns")    
         assert nv.store_addr_out.value == 0
         assert nv.data_in_read.value == 0
 
-    pc += 4
-    nv.spi_data_in.value = instr & 1
+    nv.spi_data_in.value = (instr >> 31) & 1
     await ClockCycles(nv.clk, 1)
     await Timer(1, "ns")    
     assert nv.store_addr_out.value == 0
     assert nv.data_in_read.value == 1
-
-    for i in range(1,32):
-        nv.spi_data_in.value = (instr >> i) & 1
-        await ClockCycles(nv.clk, 1)
-        await Timer(1, "ns")    
-        assert nv.store_addr_out.value == 0
-        assert nv.data_in_read.value == 0
 
     assert await get_reg_value(nv, x2) == 0x12345678

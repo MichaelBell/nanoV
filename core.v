@@ -19,6 +19,7 @@ module nanoV_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
     input shift_data_out,
     output shift_pc,
     output [31:0] data_out,
+    output rs2_out,
     output branch
 );
 
@@ -120,6 +121,7 @@ module nanoV_core #(parameter NUM_REGS=16, parameter REG_ADDR_BITS=4) (
     end
 
     assign data_out = stored_data;
+    assign rs2_out = data_rs2;
 
     assign shift_pc = (is_jmp || is_branch_cycle1 || (is_load_upper && !instr[5])) && counter < 22 && cycle < 2;
 

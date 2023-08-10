@@ -27,6 +27,7 @@ end
 `endif
 
     wire [31:0] ext_data_in;
+    wire [31:0] addr_out;
     wire [31:0] data_out;
     wire store_addr_out;
     wire data_in_read;
@@ -38,23 +39,18 @@ end
         spi_out,
         spi_clk_enable,
         ext_data_in,
+        addr_out,
         data_out,
         store_data_out,
         store_addr_out,
         data_in_read
     );
 
-    wire [31:0] reversed_data_out;
-    genvar i;
-    generate 
-      for (i=0; i<32; i=i+1) assign reversed_data_out[i] = data_out[31-i]; 
-    endgenerate
-
     always @(posedge clk)
       if (store_data_out)
-        data <= reversed_data_out;
+        data <= data_out;
       else if (store_addr_out)
-        addr <= data_out;
+        addr <= addr_out;
 
     wire is_buffered = 0;
 

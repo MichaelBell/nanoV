@@ -12,6 +12,7 @@ module tb_core (
     input [2:0] cycle,
 
     output [31:0] data_out,
+    output rs2_out,
     output branch
 );
 
@@ -51,6 +52,7 @@ end
         shift_data_out,
         shift_pc,
         data_out,
+        rs2_out,
         branch
     );
 

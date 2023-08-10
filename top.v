@@ -34,6 +34,7 @@ module nanoV_top (
     reg buffered_spi_in;
     wire spi_data_out, spi_select_out, spi_clk_enable;
     wire [31:0] data_in;
+    wire [31:0] addr_out;
     wire [31:0] data_out;
     wire is_data, is_addr, is_data_in;
     nanoV_cpu nano(
@@ -44,6 +45,7 @@ module nanoV_top (
         spi_data_out, 
         spi_clk_enable, 
         data_in,
+        addr_out, 
         data_out, 
         is_data, 
         is_addr,
@@ -56,20 +58,14 @@ module nanoV_top (
 
     reg [1:0] connect_peripheral;
     
-    wire [31:0] reversed_data_out;
-    genvar i;
-    generate 
-      for (i=0; i<32; i=i+1) assign reversed_data_out[i] = data_out[31-i]; 
-    endgenerate
-
     always @(posedge cpu_clk) begin
         if (!rstn) begin 
             connect_peripheral <= PERI_NONE;
         end
         else if (is_addr) begin
-            if (data_out == 32'h10000000) connect_peripheral <= PERI_GPIO;
-            else if (data_out == 32'h10000010) connect_peripheral <= PERI_UART;
-            else if (data_out == 32'h10000014) connect_peripheral <= PERI_UART_STATUS;
+            if (addr_out == 32'h10000000) connect_peripheral <= PERI_GPIO;
+            else if (addr_out == 32'h10000010) connect_peripheral <= PERI_UART;
+            else if (addr_out == 32'h10000014) connect_peripheral <= PERI_UART_STATUS;
             else connect_peripheral <= PERI_NONE;
         end
     end
@@ -79,7 +75,7 @@ module nanoV_top (
         if (!rstn)
             led_data <= 0;
         else if (is_data && connect_peripheral == PERI_GPIO)
-            led_data <= reversed_data_out;
+            led_data <= data_out;
     end
 
     wire uart_tx_busy;
@@ -91,7 +87,7 @@ module nanoV_top (
                           connect_peripheral == PERI_UART_STATUS ? {6'b0, uart_rx_valid, uart_tx_busy} : 0;
 
     wire uart_tx_start = is_data && connect_peripheral == PERI_UART;
-    wire [7:0] uart_tx_data = reversed_data_out[7:0];
+    wire [7:0] uart_tx_data = data_out[7:0];
 
     uart_tx #(.CLK_HZ(12_000_000), .BIT_RATE(93_750)) i_uart_tx(
         .clk(cpu_clk),
