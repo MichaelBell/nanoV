@@ -38,5 +38,5 @@ async def test_start(nv):
     nv.uart_rxd.value = 1
     await Timer(bit_time, "ns")
 
-    await Timer(10, "us")
+    await Timer(1000, "us")
     

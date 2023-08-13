@@ -15,6 +15,15 @@ module nanoV_top (
     input button2,
     input button3,
 
+    output out0,
+    output out1,
+    output out2,
+    output out3,
+    output out4,
+    output out5,
+    output out6,
+    output out7,
+
     output led1,
     output led2,
     output led3,
@@ -26,7 +35,10 @@ module nanoV_top (
     output lcol1,
     output lcol2,
     output lcol3,
-    output lcol4);
+    output lcol4,
+    
+    output spkp,
+    output spkm);
 
     wire cpu_clk;
     assign cpu_clk = clk12MHz;
@@ -52,39 +64,55 @@ module nanoV_top (
         is_data_in);
 
     localparam PERI_NONE = 0;
-    localparam PERI_GPIO = 1;
-    localparam PERI_UART = 2;
-    localparam PERI_UART_STATUS = 3;
+    localparam PERI_LEDS = 1;
+    localparam PERI_GPIO_OUT = 2;
+    localparam PERI_GPIO_IN = 3;
+    localparam PERI_UART = 4;
+    localparam PERI_UART_STATUS = 5;
+    localparam PERI_MUSIC = 6;
 
-    reg [1:0] connect_peripheral;
+    reg [2:0] connect_peripheral;
     
     always @(posedge cpu_clk) begin
         if (!rstn) begin 
             connect_peripheral <= PERI_NONE;
         end
         else if (is_addr) begin
-            if (addr_out == 32'h10000000) connect_peripheral <= PERI_GPIO;
+            if (addr_out == 32'h10000000) connect_peripheral <= PERI_GPIO_OUT;
+            else if (addr_out == 32'h10000004) connect_peripheral <= PERI_GPIO_IN;
+            else if (addr_out == 32'h10000008) connect_peripheral <= PERI_LEDS;
             else if (addr_out == 32'h10000010) connect_peripheral <= PERI_UART;
             else if (addr_out == 32'h10000014) connect_peripheral <= PERI_UART_STATUS;
+            else if (addr_out == 32'h10000020) connect_peripheral <= PERI_MUSIC;
             else connect_peripheral <= PERI_NONE;
         end
     end
 
+    reg [7:0] output_data;
     reg [31:0] led_data;
+    reg [7:0] midi_note;
     always @(posedge cpu_clk) begin
-        if (!rstn)
+        if (!rstn) begin
             led_data <= 0;
-        else if (is_data && connect_peripheral == PERI_GPIO)
-            led_data <= data_out;
+            output_data <= 0;
+        end else if (is_data) begin
+            if (connect_peripheral == PERI_LEDS) led_data <= data_out;
+            else if (connect_peripheral == PERI_GPIO_OUT) output_data <= data_out[7:0];
+            else if (connect_peripheral == PERI_MUSIC) midi_note <= data_out[7:0];
+        end
     end
+
+    assign { out7, out6, out5, out4, out3, out2, out1, out0 } = output_data;
 
     wire uart_tx_busy;
     wire uart_rx_valid;
     wire [7:0] uart_rx_data;
     assign data_in[31:8] = 0;
-    assign data_in[7:0] = connect_peripheral == PERI_GPIO ? {5'b0, button3, button2, button1} : 
+    assign data_in[7:0] = connect_peripheral == PERI_GPIO_OUT ? output_data :
+                          connect_peripheral == PERI_GPIO_IN ? {5'b0, button3, button2, button1} : 
                           connect_peripheral == PERI_UART ? uart_rx_data :
-                          connect_peripheral == PERI_UART_STATUS ? {6'b0, uart_rx_valid, uart_tx_busy} : 0;
+                          connect_peripheral == PERI_UART_STATUS ? {6'b0, uart_rx_valid, uart_tx_busy} :
+                          connect_peripheral == PERI_MUSIC ? midi_note : 0;
 
     wire uart_tx_start = is_data && connect_peripheral == PERI_UART;
     wire [7:0] uart_tx_data = data_out[7:0];
@@ -139,5 +167,15 @@ module nanoV_top (
                 .leds(leds_out),
                 .lcol(lcol)
         );
+
+    wire spk_out;
+    Music music (
+        .clk12MHz(clk12MHz),
+        .rstn(rstn),
+        .midi_note(midi_note),
+        .spk_out(spk_out)
+    );
+    assign spkp = spk_out;
+    assign spkm = !spk_out;
 
 endmodule

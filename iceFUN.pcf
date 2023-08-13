@@ -12,10 +12,12 @@ set_io --warn-no-port lcol1		A12
 set_io --warn-no-port lcol2	 	D10
 set_io --warn-no-port lcol3 	A6
 set_io --warn-no-port lcol4 	C5
-set_io --warn-no-port button1   C11
+set_io --warn-no-port button1   A5
 set_io --warn-no-port button2   C6
 set_io --warn-no-port button3   A11
-#set_io --warn-no-port button4   A5
+#set_io --warn-no-port button4   C11
+set_io --warn-no-port spkp      M12
+set_io --warn-no-port spkm      M6
 
 set_io --warn-no-port uart_txd    G1
 set_io --warn-no-port uart_rxd    H1
@@ -26,6 +28,14 @@ set_io --warn-no-port spi_mosi    M1
 set_io --warn-no-port spi_miso    N1
 set_io --warn-no-port spi_clk_out P1
 
+set_io --warn-no-port out0      G12
+set_io --warn-no-port out1      G14
+set_io --warn-no-port out2      H12
+set_io --warn-no-port out3      J12
+set_io --warn-no-port out4      K12
+set_io --warn-no-port out5      K14
+set_io --warn-no-port out6      H11
+set_io --warn-no-port out7      L12
 
 set_io --warn-no-port clk12MHz	P7
-set_io --warn-no-port rstn	A5
+set_io --warn-no-port rstn	C11

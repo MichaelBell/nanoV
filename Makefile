@@ -2,7 +2,7 @@
 PROJ      = nanoV
 
 # Files
-FILES = ledscan.v big_7seg.v top.v core.v alu.v register.v shift.v multiply.v cpu.v uart/uart_tx.v uart/uart_rx.v
+FILES = ledscan.v big_7seg.v musicnote.v top.v core.v alu.v register.v shift.v multiply.v cpu.v uart/uart_tx.v uart/uart_rx.v
 
 .PHONY: iceFUN stats synth clean burn
 
