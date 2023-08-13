@@ -14,7 +14,7 @@ VERILOG_SOURCES += $(PWD)/ice40_cells_sim.v
 # TOPLEVEL is the name of the toplevel module in your Verilog or VHDL file
 ifeq ($(TOP),yes)
 TOPLEVEL = tb_top
-VERILOG_SOURCES += $(PWD)/top.v $(PWD)/tb_top.v $(PWD)/ledscan.v $(PWD)/uart/uart_tx.v $(PWD)/uart/uart_rx.v
+VERILOG_SOURCES += $(PWD)/top.v $(PWD)/tb_top.v $(PWD)/ledscan.v $(PWD)/musicnote.v $(PWD)/uart/uart_tx.v $(PWD)/uart/uart_rx.v
 else
 TOPLEVEL = tb_cpu
 endif
