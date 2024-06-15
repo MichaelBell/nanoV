@@ -3,6 +3,7 @@
 *.bin
 *.log
 nanoV.json
+nanoV.uf2
 
 __pycache__/
 *.vcd
