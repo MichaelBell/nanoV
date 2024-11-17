@@ -6,19 +6,19 @@ A bit serial RISC-V core and integrated SPI memory controller, for minimal area 
 
 This RISC-V core is designed to provide a minimal system on chip based on RISC-V and an external FRAM (or similar).
 
-Currently under development, the first target is to get this running on the [iceFUN dev board](https://www.robot-electronics.co.uk/icefun.html) and this [FRAM](https://www.adafruit.com/product/4719) - [datasheet](https://cdn-shop.adafruit.com/product-files/4719/4719_MB85RS4MT.pdf).
+The design was taped out on Tiny Tapeout 4, and the design is guided by minimising area.  It is really more of a curiosity than of practical use - on ASIC normally you would also care about power consumption, and on FPGA the availability of small RAMs would suggest storing the register file in RAM instead of flops.
 
-The advantage of using FRAM is a program can be stored persistently, and the same memory used for RAM.  The FRAM also (appears to - I havent tested this yet!) allow endless reading without any issues with crossing page boundaries or maximum read times, as can be the case with a PSRAM.  The HOLD pin also looks useful for interrupting instruction read for multi-cycle instructions without having to issue a new command (though stopping the clock may also work).
+As well as Tiny Tapeout 4, the design works with [pico-ice](https://tinyvision.ai/products/pico-ice-fpga-trainer-board) and on [iceFUN dev board](https://www.robot-electronics.co.uk/icefun.html).  It is designed to be used with this [FRAM](https://www.adafruit.com/product/4719) - [datasheet](https://cdn-shop.adafruit.com/product-files/4719/4719_MB85RS4MT.pdf).
 
-The chip in question doesn't mention any restrictions on clock speed for command 03h reads, so they ought to work up to 40MHz.  Therefore running on ICE40 HX8k at 40MHz is the initial goal.
+The advantage of using FRAM is a program can be stored persistently, and the same memory used for RAM.  The FRAM also allows endless reading without any issues with crossing page boundaries or maximum read times, as can be the case with a PSRAM.
 
-The eventual goal is to submit this design to a Tiny Tapeout on ASIC, where minimizing area is paramount.  Therefore a significant design consideration is to minimize the number and complexity of DFFs used as on ASIC DFFs are generally more expensive than combinational logic.
+The chip in question doesn't mention any restrictions on clock speed for command 03h reads, so they ought to work up to 40MHz.  However due to signla integrity issues I never got 40MHz on the iceFUN, and on Tiny Tapeout the design of the SPI controller, combined with the mux latency meant that the maximum clock speed was around 18MHz.
+
+As the design was always intended to be submitted to Tiny Tapeout, where minimizing area is paramount, a significant design consideration was to minimize the number and complexity of DFFs used as on ASIC DFFs are generally more expensive than combinational logic.
 
 ## Processor description
 
 Inspired by Luke Wren's [Whisk 16](https://github.com/Wren6991/tt02-whisk-serial-processor) submission for Tiny Tapeout 2, this processor is bit serial and the general purpose registers can be implemented as a ring of DFFs that rotate every clock - no exceptions.  Only 2 bits of each 32-bit register can be accessed.  These rules minimize the complexity of the register flip flops, minimizing area.
-
-On FPGA, the 30 inaccessible bits of the registers can be stored in a BRAM which is used as a FIFO.
 
 The processor executes simple instructions in "1 cycle", each cycle is 32 clocks long.  While the instruction is executed the next instruction is read over SPI.  For multi-cycle instructions that don't access memory, the SPI clock is gated once the next instruction is read until the executing instruction is complete.
 
@@ -53,3 +53,9 @@ Current instruction timing is as follows (each cycle is 32 clocks):
 | Branch (taken) | 4   |
 | Store       | 5      |
 | Load        | 5      |
+
+## Results and later work
+
+This SoC worked on Tiny Tapeout 4, possibly it was the first full Risc-V SoC to be taped out on Tiny Tapeout?  I was able to verify a variety of simple programs, including my [Advent of Code 2023](https://github.com/MichaelBell/AoC-2023) projects and several of Bruno Levy's [Tiny Programs](https://github.com/BrunoLevy/TinyPrograms).  I was also able to get a version of [MicroPython](https://github.com/MichaelBell/micropython/tree/nanoV) running, but the 512kB limit of the FRAM meant there was almost no usable RAM for programs.
+
+I'm unlikely to develop this project further as my efforts are now focussed on [TinyQV](https://github.com/MichaelBell/tinyQV), which works is 4-bit serial using QSPI PSRAM and flash, allowing 4 or more times higher throughput.  TinyQV was taped out on TT06.
